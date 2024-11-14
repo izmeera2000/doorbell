@@ -1,15 +1,16 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Opus Audio Stream</title>
+  <meta charset="UTF-8">
+  <title>ESP32 Audio Stream</title>
 </head>
 <body>
-    <h1>Opus Audio Stream</h1>
-    <audio controls>
-        <source src="http://172.20.10.3:82/audio" type="audio/ogg; codecs=opus">
-        Your browser does not support the audio element.
-    </audio>
+  <h1>ESP32 Audio Stream</h1>
+  <audio id="audioPlayer" controls autoplay></audio>
+
+  <script>
+    const audioPlayer = document.getElementById('audioPlayer');
+    audioPlayer.src = 'http://172.20.100.5/audio';
+  </script>
 </body>
 </html>
