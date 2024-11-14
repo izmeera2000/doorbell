@@ -32,6 +32,8 @@ uint8_t wav_header[44] = {
 };
 
 void setup() {
+    esp_task_wdt_init(0, false);  // Disable the watchdog timer
+  esp_task_wdt_deinit();         // Deinitialize watchdog
   Serial.begin(115200);
 
   WiFi.begin(ssid, password);
