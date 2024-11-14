@@ -2,8 +2,8 @@
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
 
-const char* ssid = "iPhone";       // Replace with your Wi-Fi SSID
-const char* password = "Alamak323";  // Replace with your Wi-Fi Password
+const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
+const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 
 AsyncWebServer server(80);
 
@@ -21,9 +21,9 @@ AsyncWebServer server(80);
 // I2S microphone pin configuration
 i2s_pin_config_t i2s_pin_config = {
   .bck_io_num = I2S_MIC_SERIAL_CLOCK,
-    .ws_io_num = I2S_MIC_LEFT_RIGHT_CLOCK,
-    .data_out_num = I2S_PIN_NO_CHANGE,
-    .data_in_num = I2S_MIC_SERIAL_DATA
+  .ws_io_num = I2S_MIC_LEFT_RIGHT_CLOCK,
+  .data_out_num = I2S_PIN_NO_CHANGE,
+  .data_in_num = I2S_MIC_SERIAL_DATA
 
 };
 
@@ -72,7 +72,7 @@ void setup() {
   i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
 
   // Endpoint to stream audio
-  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request){
+  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
     sendWavHeader(request);  // Send the WAV header
 
     // Stream audio data
