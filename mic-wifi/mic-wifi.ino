@@ -23,41 +23,17 @@ i2s_pin_config_t i2s_pin_config = {
   .data_in_num = I2S_MIC_SERIAL_DATA
 };
 
-// WAV header
+// Modify the WAV header with infinite length
 uint8_t wav_header[44] = {
-  'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
-  16, 0, 0, 0, 1, 0, 1, 0, 0x40, 0x1F, 0x00, 0x00, 0x80, 0x3E, 0x00, 0x00,
-  2, 0, 16, 0, 'd', 'a', 't', 'a', 0, 0, 0, 0
+  'R', 'I', 'F', 'F', 0xFF, 0xFF, 0xFF, 0x7F, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
+  16, 0, 0, 0, 1, 0, 1, 0, (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
+  (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
+  2, 0, 16, 0, 'd', 'a', 't', 'a', 0xFF, 0xFF, 0xFF, 0x7F
 };
-
-void updateWavHeader(uint32_t dataSize) {
-  uint32_t fileSize = dataSize + 36;
-  wav_header[4] = (fileSize & 0xFF);
-  wav_header[5] = (fileSize >> 8) & 0xFF;
-  wav_header[6] = (fileSize >> 16) & 0xFF;
-  wav_header[7] = (fileSize >> 24) & 0xFF;
-  wav_header[40] = (dataSize & 0xFF);
-  wav_header[41] = (dataSize >> 8) & 0xFF;
-  wav_header[42] = (dataSize >> 16) & 0xFF;
-  wav_header[43] = (dataSize >> 24) & 0xFF;
-}
-
-void sendWavHeader(AsyncWebServerRequest *request) {
-  AsyncWebServerResponse *response = request->beginResponse("audio/wav", sizeof(wav_header), [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-    memcpy(buffer, wav_header, sizeof(wav_header));
-    return sizeof(wav_header);
-  });
-  response->addHeader("Content-Type", "audio/wav");
-  response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-  response->addHeader("Pragma", "no-cache");
-  response->addHeader("Expires", "-1");
-  request->send(response);
-}
 
 void setup() {
   Serial.begin(115200);
 
-  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -66,7 +42,6 @@ void setup() {
   Serial.println("Connected to WiFi");
   Serial.println(WiFi.localIP());
 
-  // I2S configuration
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
@@ -81,15 +56,20 @@ void setup() {
   i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
   i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
 
-  // Audio stream endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
-    sendWavHeader(request);  // Send WAV header
-
+    // Send the WAV header once at the start
     AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-      size_t bytesRead = 0;
+      if (index == 0) {
+        memcpy(buffer, wav_header, sizeof(wav_header));
+        return sizeof(wav_header);
+      }
+      size_t bytesRead;
       i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
       return bytesRead;
     });
+    
+    response->addHeader("Content-Type", "audio/wav");
+    response->addHeader("Transfer-Encoding", "chunked");  // Ensure it's treated as a chunked stream
     response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     response->addHeader("Pragma", "no-cache");
     response->addHeader("Expires", "-1");
@@ -100,5 +80,5 @@ void setup() {
 }
 
 void loop() {
-  // No code needed here; server handles everything asynchronously
+  // No code needed here; handled by server
 }
