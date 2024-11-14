@@ -9,8 +9,8 @@ const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 
 AsyncWebServer server(80);
 
-#define SAMPLE_RATE 16000
-#define SAMPLE_BUFFER_SIZE 512
+#define SAMPLE_RATE 16000  // Higher sample rate for better audio quality
+#define SAMPLE_BUFFER_SIZE 1024  // Larger buffer size to handle more data
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -55,14 +55,15 @@ void setup() {
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 10,
-    .dma_buf_len = SAMPLE_BUFFER_SIZE
+    .dma_buf_count = 16,           // Increased buffer count
+    .dma_buf_len = SAMPLE_BUFFER_SIZE // Larger buffer size for higher sample rate
   };
 
   // Initialize I2S
   i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
   i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
   i2s_set_dac_mode(I2S_DAC_CHANNEL_LEFT_EN);  // Set DAC to use GPIO25
+  i2s_set_sample_rates(I2S_NUM_0, SAMPLE_RATE); // Set sample rate
 
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -95,12 +96,10 @@ void loop() {
   uint8_t audio_buffer[SAMPLE_BUFFER_SIZE];
   size_t bytes_read;
 
-  // Capture audio samples from I2S with a short delay for stability
+  // Capture audio samples from I2S
   i2s_read(I2S_NUM_0, &audio_buffer, SAMPLE_BUFFER_SIZE, &bytes_read, portMAX_DELAY);
-  delay(1);  // Small delay to allow for processing
 
-  // Write the audio samples to DAC (play on speaker) with a small delay after each write
+  // Write the audio samples to DAC (play on speaker)
   size_t bytes_written;
   i2s_write(I2S_NUM_0, &audio_buffer, bytes_read, &bytes_written, portMAX_DELAY);
-  delay(1);  // Small delay for stability
 }
