@@ -9,8 +9,8 @@ const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 
 AsyncWebServer server(80);
 
-#define SAMPLE_RATE 4000
-#define SAMPLE_BUFFER_SIZE 1024
+#define SAMPLE_RATE 8000
+#define SAMPLE_BUFFER_SIZE 512
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
