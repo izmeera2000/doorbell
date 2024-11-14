@@ -95,12 +95,12 @@ void loop() {
   uint8_t audio_buffer[SAMPLE_BUFFER_SIZE];
   size_t bytes_read;
 
-  // Capture audio samples from I2S
+  // Capture audio samples from I2S with a short delay for stability
   i2s_read(I2S_NUM_0, &audio_buffer, SAMPLE_BUFFER_SIZE, &bytes_read, portMAX_DELAY);
+  delay(1);  // Small delay to allow for processing
 
-  // Write the audio samples to DAC (play on speaker)
+  // Write the audio samples to DAC (play on speaker) with a small delay after each write
   size_t bytes_written;
   i2s_write(I2S_NUM_0, &audio_buffer, bytes_read, &bytes_written, portMAX_DELAY);
-
-  delay(10);  // Small delay to help with stability
+  delay(1);  // Small delay for stability
 }
