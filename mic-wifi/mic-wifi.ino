@@ -2,9 +2,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
-#include "esp_system.h"
-#include "esp_task_wdt.h"
-
+ 
 // Wi-Fi Credentials
 const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";   // Replace with your Wi-Fi Password
@@ -86,13 +84,11 @@ void setup() {
   });
 
   server.begin();
-  esp_task_wdt_init(10, true);  // Initialize watchdog with a 10-second timeout
-}
+ }
 
 void loop() {
   // Feed the watchdog periodically to prevent resets
-  esp_task_wdt_reset();
-  
+   
   // Monitor memory usage for debugging
   Serial.print("Free heap: ");
   Serial.println(ESP.getFreeHeap());
