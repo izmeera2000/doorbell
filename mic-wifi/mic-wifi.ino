@@ -2,6 +2,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
+#include "esp_system.h"
 
 const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";  // Replace with your Wi-Fi Password
@@ -10,7 +11,7 @@ const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 AsyncWebServer server(80);
 
 #define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 512
+#define SAMPLE_BUFFER_SIZE 256  
 
 #define I2S_MIC_SERIAL_CLOCK 26
 #define I2S_MIC_LEFT_RIGHT_CLOCK 22
@@ -32,8 +33,6 @@ uint8_t wav_header[44] = {
 };
 
 void setup() {
-    esp_task_wdt_init(0, false);  // Disable the watchdog timer
-  esp_task_wdt_deinit();         // Deinitialize watchdog
   Serial.begin(115200);
 
   WiFi.begin(ssid, password);
@@ -83,4 +82,6 @@ void setup() {
 
 void loop() {
   // No code needed here; handled by server
+
+  
 }
