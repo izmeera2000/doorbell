@@ -6,9 +6,9 @@
 // most microphones will probably default to left channel but you may need to tie the L/R pin low
 #define I2S_MIC_CHANNEL I2S_CHANNEL_FMT_ONLY_LEFT
 // either wire your microphone to the same pins or change these to match your wiring
-#define I2S_MIC_SERIAL_CLOCK 32
-#define I2S_MIC_LEFT_RIGHT_CLOCK 25
-#define I2S_MIC_SERIAL_DATA 33
+#define I2S_MIC_SERIAL_CLOCK 25
+#define I2S_MIC_LEFT_RIGHT_CLOCK 22
+#define I2S_MIC_SERIAL_DATA 21
 
 // don't mess around with this
 i2s_config_t i2s_config = {
