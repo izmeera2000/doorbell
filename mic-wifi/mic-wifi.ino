@@ -82,6 +82,7 @@ void setup() {
 
 void loop() {
   // No code needed here; handled by server
+  esp_task_wdt_reset();  // Feed the watchdog timer
 
   
 }
