@@ -1,0 +1,107 @@
+#include <WiFi.h>
+#include <ESPAsyncWebServer.h>
+#include <driver/i2s.h>
+
+// Wi-Fi credentials
+const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
+const char *password = "Alamak323";  // Replace with your Wi-Fi Password
+
+
+AsyncWebServer server(80);
+
+// I2S and INMP441 Microphone Configuration
+#define I2S_MIC_CHANNEL I2S_CHANNEL_FMT_ONLY_LEFT
+#define I2S_MIC_SERIAL_CLOCK 26
+#define I2S_MIC_LEFT_RIGHT_CLOCK 22
+#define I2S_MIC_SERIAL_DATA 21
+#define SAMPLE_RATE 16000
+#define SAMPLE_BUFFER_SIZE 1024
+
+// WAV Header Template
+const uint8_t wav_header[] = {
+  'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
+  16, 0, 0, 0, 1, 0, 1, 0, 0x80, 0x3E, 0x00, 0x00, 0x80, 0x3E, 0x00, 0x00,
+  1, 0, 16, 0, 'd', 'a', 't', 'a', 0, 0, 0, 0
+};
+
+// Function to send the WAV header
+void sendWavHeader(AsyncWebServerRequest *request) {
+  AsyncWebServerResponse *response = request->beginResponse("audio/wav", sizeof(wav_header), [request](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
+    memcpy(buffer, wav_header, sizeof(wav_header));
+    return sizeof(wav_header);
+  });
+  response->addHeader("Content-Type", "audio/wav");
+  request->send(response);
+}
+
+void setup() {
+  Serial.begin(115200);
+
+  // Connect to Wi-Fi
+  WiFi.begin(ssid, password);
+  while (WiFi.status() != WL_CONNECTED) {
+    delay(1000);
+    Serial.println("Connecting to WiFi...");
+  }
+  Serial.println("Connected to WiFi");
+  Serial.println(WiFi.localIP());
+
+  // I2S Configuration
+  i2s_config_t i2s_config = {
+    .mode = i2s_mode_t(I2S_MODE_MASTER | I2S_MODE_RX),
+    .sample_rate = SAMPLE_RATE,
+    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+    .channel_format = I2S_MIC_CHANNEL,
+    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .dma_buf_count = 8,
+    .dma_buf_len = SAMPLE_BUFFER_SIZE
+  };
+
+  i2s_pin_config_t i2s_pin_config = {
+    .bck_io_num = I2S_MIC_SERIAL_CLOCK,
+    .ws_io_num = I2S_MIC_LEFT_RIGHT_CLOCK,
+    .data_out_num = I2S_PIN_NO_CHANGE,
+    .data_in_num = I2S_MIC_SERIAL_DATA
+  };
+
+  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
+
+  // Endpoint to stream audio
+  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
+    sendWavHeader(request);  // Send the WAV header
+
+    // Stream audio data
+    AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
+      size_t bytesRead = 0;
+      i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
+      return bytesRead;
+    });
+    request->send(response);
+  });
+
+  // Serve a basic HTML page
+  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request) {
+    String html = R"(
+      <!DOCTYPE html>
+      <html>
+      <head><title>ESP32 Audio Stream</title></head>
+      <body>
+        <h2>Live Audio Stream</h2>
+        <audio controls autoplay>
+          <source src="/audio" type="audio/wav">
+          Your browser does not support the audio element.
+        </audio>
+      </body>
+      </html>
+    )";
+    request->send(200, "text/html", html);
+  });
+
+  server.begin();
+}
+
+void loop() {
+  // Nothing needed here; the server handles requests asynchronously
+}
