@@ -2,8 +2,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
-#include "esp_system.h"
-
+ 
 const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 
@@ -82,8 +81,7 @@ void setup() {
 
 void loop() {
   // No code needed here; handled by server
-  esp_task_wdt_reset();  // Feed the watchdog timer
-
+ 
   Serial.print("Free heap: ");
   Serial.println(ESP.getFreeHeap());
 }
