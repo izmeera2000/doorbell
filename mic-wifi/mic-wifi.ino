@@ -6,14 +6,12 @@
 const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 
+
 AsyncWebServer server(80);
 
-// You shouldn't need to change these settings
-#define SAMPLE_BUFFER_SIZE 512
 #define SAMPLE_RATE 8000
-#define I2S_MIC_CHANNEL I2S_CHANNEL_FMT_ONLY_LEFT
+#define SAMPLE_BUFFER_SIZE 512
 
-// Adjust these to your specific wiring
 #define I2S_MIC_SERIAL_CLOCK 26
 #define I2S_MIC_LEFT_RIGHT_CLOCK 22
 #define I2S_MIC_SERIAL_DATA 21
@@ -25,7 +23,7 @@ i2s_pin_config_t i2s_pin_config = {
   .data_in_num = I2S_MIC_SERIAL_DATA
 };
 
-// WAV header template
+// WAV header
 uint8_t wav_header[44] = {
   'R', 'I', 'F', 'F', 0, 0, 0, 0, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
   16, 0, 0, 0, 1, 0, 1, 0, 0x40, 0x1F, 0x00, 0x00, 0x80, 0x3E, 0x00, 0x00,
@@ -50,6 +48,9 @@ void sendWavHeader(AsyncWebServerRequest *request) {
     return sizeof(wav_header);
   });
   response->addHeader("Content-Type", "audio/wav");
+  response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+  response->addHeader("Pragma", "no-cache");
+  response->addHeader("Expires", "-1");
   request->send(response);
 }
 
@@ -70,8 +71,8 @@ void setup() {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-    .channel_format = I2S_MIC_CHANNEL,
-    .communication_format = I2S_COMM_FORMAT_I2S,
+    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 8,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
@@ -80,8 +81,8 @@ void setup() {
   i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
   i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
 
-  // Endpoint to stream audio
-  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request){
+  // Audio stream endpoint
+  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
     sendWavHeader(request);  // Send WAV header
 
     AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
@@ -89,6 +90,9 @@ void setup() {
       i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
       return bytesRead;
     });
+    response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
+    response->addHeader("Pragma", "no-cache");
+    response->addHeader("Expires", "-1");
     request->send(response);
   });
 
