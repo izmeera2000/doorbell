@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include "AudioFileSourceHTTPSStream.h" // For HTTPS streaming
+#include "AudioFileSourceHTTPStream.h"
 #include "AudioGeneratorMP3.h"
 #include "AudioOutputI2S.h"
 
@@ -8,11 +8,10 @@ const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 
 // Audio stream URL
-const char* streamURL = "https://audio-edge-jfbmv.sin.d.radiomast.io/ref-128k-mp3-stereo";
-
+const char* streamURL = "http://audio-edge-jfbmv.sin.d.radiomast.io/ref-128k-mp3-stereo";
 // Audio objects
 AudioGeneratorMP3 *mp3;
-AudioFileSourceHTTPSStream *file;
+AudioFileSourceHTTPStream *file;
 AudioOutputI2S *out;
 
 void setup() {
@@ -33,8 +32,8 @@ void setup() {
   out->SetGain(0.5);            // Adjust volume (0.0 to 1.0)
   out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
 
-  // Set up the HTTPS audio stream
-  file = new AudioFileSourceHTTPSStream(streamURL);
+  // Set up the HTTP audio stream
+  file = new AudioFileSourceHTTPStream(streamURL);
 
   // Set up the MP3 decoder
   mp3 = new AudioGeneratorMP3();
