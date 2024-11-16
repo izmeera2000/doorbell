@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include "AudioFileSourceHTTPStream.h"
+#include "AudioFileSourceHTTPSStream.h" // For HTTPS streaming
 #include "AudioGeneratorMP3.h"
 #include "AudioOutputI2S.h"
 
@@ -12,7 +12,7 @@ const char* streamURL = "https://audio-edge-jfbmv.sin.d.radiomast.io/ref-128k-mp
 
 // Audio objects
 AudioGeneratorMP3 *mp3;
-AudioFileSourceHTTPStream *file;
+AudioFileSourceHTTPSStream *file;
 AudioOutputI2S *out;
 
 void setup() {
@@ -33,8 +33,8 @@ void setup() {
   out->SetGain(0.5);            // Adjust volume (0.0 to 1.0)
   out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
 
-  // Set up the HTTP audio stream
-  file = new AudioFileSourceHTTPStream(streamURL);
+  // Set up the HTTPS audio stream
+  file = new AudioFileSourceHTTPSStream(streamURL);
 
   // Set up the MP3 decoder
   mp3 = new AudioGeneratorMP3();
