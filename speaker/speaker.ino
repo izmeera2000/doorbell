@@ -27,20 +27,27 @@ void setup() {
   }
   Serial.println("WiFi connected!");
 
-  // Configure I2S output
+  // Configure DAC output (single pin)
   out = new AudioOutputI2S();
-  out->SetPinout(25, 26, 27); // BCK, WS, DATA pins (default GPIOs for ESP32 DAC)
-  out->SetGain(0.5);          // Set volume (0.0 to 1.0)
+  out->SetOutputModeMono(true); // Mono output
+  out->SetGain(0.5);            // Adjust volume (0.0 to 1.0)
+  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
 
-  // Set up the HTTP stream
+  // Set up the HTTP audio stream
   file = new AudioFileSourceHTTPStream(streamURL);
 
   // Set up the MP3 decoder
   mp3 = new AudioGeneratorMP3();
-  mp3->begin(file, out);
+  if (!mp3->begin(file, out)) {
+    Serial.println("Failed to start MP3 decoder!");
+    while (true); // Halt if the decoder fails to start
+  }
+
+  Serial.println("Audio streaming started...");
 }
 
 void loop() {
+  // Process the MP3 audio stream
   if (mp3->isRunning()) {
     if (!mp3->loop()) {
       mp3->stop();
