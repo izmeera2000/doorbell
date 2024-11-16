@@ -90,8 +90,8 @@ void loop() {
   // Feed the watchdog periodically to prevent resets
    
   // Monitor memory usage for debugging
-  Serial.print("Free heap: ");
-  Serial.println(ESP.getFreeHeap());
+  // Serial.print("Free heap: ");
+  // Serial.println(ESP.getFreeHeap());
   
-  delay(1000);  // Slow down the loop for easier debugging and stability
+  // delay(1000);  // Slow down the loop for easier debugging and stability
 }
