@@ -92,6 +92,7 @@ void loop() {
   // Monitor memory usage for debugging
   // Serial.print("Free heap: ");
   // Serial.println(ESP.getFreeHeap());
+  delay(10000);
   
   // delay(1000);  // Slow down the loop for easier debugging and stability
 }
