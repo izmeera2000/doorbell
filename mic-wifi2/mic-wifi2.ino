@@ -67,56 +67,52 @@ void setup() {
   Serial.println("Connected to WiFi");
   Serial.println(WiFi.localIP());
 
- 
 
- 
+
+
   // Audio streaming endpoint
   Audioserver.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
-      mic_i2s_init();
+    mic_i2s_init();
 
-  WAVHeader wavHeader;
-  initializeWAVHeader(wavHeader, sampleRate, bitsPerSample, numChannels);
+    WAVHeader wavHeader;
+    initializeWAVHeader(wavHeader, sampleRate, bitsPerSample, numChannels);
 
-  // Get access to the client object
-  WiFiClient Audioclient = Audioserver.client();
+    // Get the client object from the request
+    WiFiClient client = request->client();
 
-  // Send the 200 OK response with the headers
-  Audioclient.print("HTTP/1.1 200 OK\r\n");
-  Audioclient.print("Content-Type: audio/wav\r\n");
-  Audioclient.print("Access-Control-Allow-Origin: *\r\n");
-  Audioclient.print("\r\n");
+    // Send the 200 OK response with the headers
+    client.print("HTTP/1.1 200 OK\r\n");
+    client.print("Content-Type: audio/wav\r\n");
+    client.print("Access-Control-Allow-Origin: *\r\n");
+    client.print("\r\n");
 
-  // Send the initial part of the WAV header
-  Audioclient.write(reinterpret_cast<const uint8_t *>(&wavHeader), sizeof(wavHeader));
+    // Send the initial part of the WAV header
+    client.write(reinterpret_cast<const uint8_t *>(&wavHeader), sizeof(wavHeader));
 
-  uint8_t buffer[bufferSize];
-  size_t bytesRead = 0;
-  //uint32_t totalDataSize = 0; // Total size of audio data sent
+    uint8_t buffer[bufferSize];
+    size_t bytesRead = 0;
 
-  while (true) {
-    if (!Audioclient.connected()) {
-      //i2s_driver_uninstall(I2S_PORT);
-      Serial.println("Audioclient disconnected");
-      break;
+    while (true) {
+      if (!client.connected()) {
+        Serial.println("Client disconnected");
+        break;
+      }
+
+      // Read audio data from I2S DMA
+      i2s_read(I2S_PORT, buffer, bufferSize, &bytesRead, portMAX_DELAY);
+
+      // Send audio data
+      if (bytesRead > 0) {
+        client.write(buffer, bytesRead);
+      }
     }
-    // Read audio data from I2S DMA
-    i2s_read(I2S_PORT, buffer, bufferSize, &bytesRead, portMAX_DELAY);
+  });
 
-    // Send audio data
-    if (bytesRead > 0) {
-      Audioclient.write(buffer, bytesRead);
-      //totalDataSize += bytesRead;
-      //Serial.println(totalDataSize);
-    }
-  }
-  
-   });
 
   Audioserver.begin();
 }
 
 void loop() {
- 
 }
 
 
@@ -167,10 +163,4 @@ void mic_i2s_init() {
     .data_in_num = I2S_SD
   };
   i2s_set_pin(I2S_PORT, &pinConfig);
-}
-
-
-void handleAudioStream() {
-
- 
 }
