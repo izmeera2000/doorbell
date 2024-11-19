@@ -5,20 +5,17 @@
 
 // Wi-Fi Credentials
 const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
-const char *password = "Alamak323";   // Replace with your Wi-Fi Password
+const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 
-AsyncWebServer server(80);
+AsyncWebServer server(82);
 
-#define SAMPLE_RATE 16000  // Higher sample rate for better audio quality
-#define SAMPLE_BUFFER_SIZE 1024  // Larger buffer size to handle more data
+#define SAMPLE_RATE 8000
+#define SAMPLE_BUFFER_SIZE 512
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
 #define I2S_MIC_LEFT_RIGHT_CLOCK 22
 #define I2S_MIC_SERIAL_DATA 21
-
-// Configure DAC output pin (GPIO25 or GPIO26)
-#define DAC_OUTPUT_PIN 25
 
 i2s_pin_config_t i2s_pin_config = {
   .bck_io_num = I2S_MIC_SERIAL_CLOCK,
@@ -47,23 +44,21 @@ void setup() {
   Serial.println("Connected to WiFi");
   Serial.println(WiFi.localIP());
 
-  // I2S configuration for both RX (Microphone) and DAC TX (Speaker)
+  // I2S configuration
   i2s_config_t i2s_config = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX | I2S_MODE_TX | I2S_MODE_DAC_BUILT_IN),
+    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 16,           // Increased buffer count
-    .dma_buf_len = SAMPLE_BUFFER_SIZE // Larger buffer size for higher sample rate
+    .dma_buf_count = 10,
+    .dma_buf_len = SAMPLE_BUFFER_SIZE
   };
 
   // Initialize I2S
   i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
   i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
-  i2s_set_dac_mode(I2S_DAC_CHANNEL_LEFT_EN);  // Set DAC to use GPIO25
-  i2s_set_sample_rates(I2S_NUM_0, SAMPLE_RATE); // Set sample rate
 
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -92,14 +87,15 @@ void setup() {
 }
 
 void loop() {
-  // Read audio data from the microphone
-  uint8_t audio_buffer[SAMPLE_BUFFER_SIZE];
-  size_t bytes_read;
+  static unsigned long lastHeapLogTime = 0;
+  unsigned long currentMillis = millis();
 
-  // Capture audio samples from I2S
-  i2s_read(I2S_NUM_0, &audio_buffer, SAMPLE_BUFFER_SIZE, &bytes_read, portMAX_DELAY);
+  // Periodically log heap memory usage for debugging (every 10 seconds)
+  if (currentMillis - lastHeapLogTime >= 10000) {
+    lastHeapLogTime = currentMillis;
+    Serial.print("Free heap: ");
+    Serial.println(ESP.getFreeHeap());
+  }
 
-  // Write the audio samples to DAC (play on speaker)
-  size_t bytes_written;
-  i2s_write(I2S_NUM_0, &audio_buffer, bytes_read, &bytes_written, portMAX_DELAY);
+  // Other real-time tasks can be added here
 }
