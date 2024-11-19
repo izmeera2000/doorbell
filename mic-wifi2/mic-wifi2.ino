@@ -25,12 +25,28 @@ i2s_pin_config_t i2s_pin_config = {
 };
 
 // Modified WAV header for infinite stream
+#define SAMPLE_RATE 44100 // Example, set your sample rate here
+
 uint8_t wav_header[44] = {
-  'R', 'I', 'F', 'F', 0xFF, 0xFF, 0xFF, 0x7F, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
-  16, 0, 0, 0, 1, 0, 1, 0, (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
-  (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
-  2, 0, 16, 0, 'd', 'a', 't', 'a', 0xFF, 0xFF, 0xFF, 0x7F
+  'R', 'I', 'F', 'F',                 // "RIFF"
+  0xFF, 0xFF, 0xFF, 0x7F,             // Placeholder for ChunkSize
+  'W', 'A', 'V', 'E',                 // "WAVE"
+  'f', 'm', 't', ' ',                 // "fmt "
+  16, 0, 0, 0,                        // Subchunk1Size (16 for PCM)
+  1, 0,                               // AudioFormat (1 = PCM)
+  1, 0,                               // NumChannels (1 = mono, 2 = stereo)
+  (uint8_t)(SAMPLE_RATE & 0xFF),       // SampleRate (Low byte)
+  (uint8_t)((SAMPLE_RATE >> 8) & 0xFF),// SampleRate (High byte)
+  0x00, 0x00,                         // (This part repeats for ByteRate)
+  (uint8_t)(SAMPLE_RATE & 0xFF),       // ByteRate (Low byte)
+  (uint8_t)((SAMPLE_RATE >> 8) & 0xFF),// ByteRate (High byte)
+  0x00, 0x00,                         // BlockAlign
+  2, 0,                               // BitsPerSample (16-bit)
+  16, 0,                              // Subchunk2Size (16 for PCM data)
+  'd', 'a', 't', 'a',                  // "data"
+  0xFF, 0xFF, 0xFF, 0x7F              // Placeholder for Subchunk2Size
 };
+
 
 void setup() {
   Serial.begin(115200);
@@ -54,6 +70,8 @@ void setup() {
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 2,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
+        .use_apll = true                                      // Enable Audio PLL for better audio quality
+
   };
 
   // Initialize I2S
