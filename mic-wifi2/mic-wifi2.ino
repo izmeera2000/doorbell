@@ -71,10 +71,11 @@ void setup() {
 
  
   // Audio streaming endpoint
-  Audioserver.on("/audio", HTTP_GET, handleAudioStream);
+  Audioserver.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
      
+  Audioserver.on("/audio", HTTP_GET, handleAudioStream);
 
- 
+   });
 
   Audioserver.begin();
 }
