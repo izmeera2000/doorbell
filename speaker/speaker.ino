@@ -29,7 +29,7 @@ void setup() {
   // Configure DAC output (single pin)
   out = new AudioOutputI2S();
   out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.1);            // Adjust volume (0.0 to 1.0)
+  out->SetGain(0.5);            // Adjust volume (0.0 to 1.0)
   out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
 
   // Set up the HTTP audio stream
