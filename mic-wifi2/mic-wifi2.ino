@@ -2,10 +2,21 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
+#include "AudioFileSourceHTTPStream.h"
+#include "AudioGeneratorMP3.h"
+#include "AudioOutputI2S.h"
  
 // Wi-Fi Credentials
 const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";   // Replace with your Wi-Fi Password
+
+const char* streamURL = "http://audio-edge-jfbmv.sin.d.radiomast.io/ref-128k-mp3-stereo";
+// Audio objects
+AudioGeneratorMP3 *mp3;
+AudioFileSourceHTTPStream *file;
+AudioOutputI2S *out;
+
+
 
 AsyncWebServer server(82);
 
@@ -103,15 +114,38 @@ i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO)
   });
 
   server.begin();
+
+
+    // Configure DAC output (single pin)
+  out = new AudioOutputI2S();
+  out->SetOutputModeMono(true); // Mono output
+  out->SetGain(0.2);            // Adjust volume (0.0 to 1.0)
+  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
+
+
+    // Set up the HTTP audio stream
+  file = new AudioFileSourceHTTPStream(streamURL);
+
+  // Set up the MP3 decoder
+  mp3 = new AudioGeneratorMP3();
+  if (!mp3->begin(file, out)) {
+    Serial.println("Failed to start MP3 decoder!");
+    while (true); // Halt if the decoder fails to start
+  }
+
+
+
  }
 
 void loop() {
-  // Feed the watchdog periodically to prevent resets
-   
-  // Monitor memory usage for debugging
-  // Serial.print("Free heap: ");
-  // Serial.println(ESP.getFreeHeap());
-  delay(10000);
-  
-  // delay(1000);  // Slow down the loop for easier debugging and stability
+  // Process the MP3 audio stream
+  if (mp3->isRunning()) {
+    if (!mp3->loop()) {
+      mp3->stop();
+      Serial.println("Audio stream ended.");
+    }
+  } else {
+    Serial.println("Audio generator not running.");
+    delay(1000);
+  }
 }
