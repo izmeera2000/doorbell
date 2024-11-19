@@ -70,13 +70,13 @@ void setup() {
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
     .dma_buf_count = 2,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
-        .use_apll = true                                      // Enable Audio PLL for better audio quality
-
+    
   };
 
   // Initialize I2S
   i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
   i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
+i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO);  // Set I2S clock, use APLL
 
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
