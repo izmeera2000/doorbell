@@ -24,8 +24,7 @@ i2s_pin_config_t i2s_pin_config = {
   .data_in_num = I2S_MIC_SERIAL_DATA
 };
 
-// Modified WAV header for infinite stream
-#define SAMPLE_RATE 44100 // Example, set your sample rate here
+
 
 uint8_t wav_header[44] = {
   'R', 'I', 'F', 'F',                 // "RIFF"
@@ -67,7 +66,7 @@ void setup() {
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
-    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .intr_alloc_flags = 0,
     .dma_buf_count = 2,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
     
@@ -98,6 +97,8 @@ i2s_set_clk(I2S_NUM_0, SAMPLE_RATE, I2S_BITS_PER_SAMPLE_16BIT, I2S_CHANNEL_MONO)
     response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     response->addHeader("Pragma", "no-cache");
     response->addHeader("Expires", "-1");
+    response->addHeader("Access-Control-Allow-Origin", "*");  // Or specify a specific domain instead of "*" if needed
+
     request->send(response);
   });
 
