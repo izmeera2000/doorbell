@@ -10,7 +10,7 @@ const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 AsyncWebServer server(82);
 
 #define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 512
+#define SAMPLE_BUFFER_SIZE 256 // Reduced buffer size for lower latency
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -24,7 +24,7 @@ i2s_pin_config_t i2s_pin_config = {
   .data_in_num = I2S_MIC_SERIAL_DATA
 };
 
-// Modified WAV header for infinite stream
+// WAV header for infinite stream
 uint8_t wav_header[44] = {
   'R', 'I', 'F', 'F', 0xFF, 0xFF, 0xFF, 0x7F, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
   16, 0, 0, 0, 1, 0, 1, 0, (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
@@ -35,7 +35,7 @@ uint8_t wav_header[44] = {
 void setup() {
   Serial.begin(115200);
 
-  // Initialize Wi-Fi connection
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -52,29 +52,26 @@ void setup() {
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 10,
+    .dma_buf_count = 4,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
   };
 
-  // Initialize I2S
   i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
   i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
 
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // Send WAV header at the beginning
     AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
+      static uint8_t chunkBuffer[128];
       if (index == 0) {
         memcpy(buffer, wav_header, sizeof(wav_header));
         return sizeof(wav_header);
       }
-      // Read audio samples from I2S
       size_t bytesRead;
-      i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
+      i2s_read(I2S_NUM_0, chunkBuffer, sizeof(chunkBuffer), &bytesRead, 0); // Non-blocking
+      memcpy(buffer, chunkBuffer, bytesRead);
       return bytesRead;
     });
-    
-    // Set headers to allow for streaming
     response->addHeader("Content-Type", "audio/wav");
     response->addHeader("Transfer-Encoding", "chunked");
     response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -90,12 +87,9 @@ void loop() {
   static unsigned long lastHeapLogTime = 0;
   unsigned long currentMillis = millis();
 
-  // Periodically log heap memory usage for debugging (every 10 seconds)
   if (currentMillis - lastHeapLogTime >= 10000) {
     lastHeapLogTime = currentMillis;
     Serial.print("Free heap: ");
     Serial.println(ESP.getFreeHeap());
   }
-
-  // Other real-time tasks can be added here
 }
