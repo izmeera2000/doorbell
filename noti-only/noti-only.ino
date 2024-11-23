@@ -1,9 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <esp_system.h>
-#include <string.h>
-#include <mbedtls/md.h>  // For HMAC-SHA256
 #include <mbedtls/md5.h> // For MD5 hash
+#include <mbedtls/md.h>  // For HMAC-SHA256
 
 // Wi-Fi credentials
 const char* ssid = "iPhone";
@@ -22,7 +21,7 @@ const String url = "http://api-" + cluster + ".pusher.com/apps/" + app_id + "/ev
 const String channel = "doorbell";
 const String event = "bell";
 
-// Function to generate MD5 hash of the body
+// Function to generate MD5 hash of the body (corrected)
 String generateBodyMD5(String body) {
   unsigned char hash[16];
   mbedtls_md5_context ctx;
@@ -32,6 +31,7 @@ String generateBodyMD5(String body) {
   mbedtls_md5_finish(&ctx, hash);
   mbedtls_md5_free(&ctx);
 
+  // Convert MD5 hash to hex string
   String body_md5 = "";
   for (int i = 0; i < 16; i++) {
     body_md5 += String(hash[i], HEX);
