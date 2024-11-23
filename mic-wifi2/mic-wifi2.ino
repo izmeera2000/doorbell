@@ -97,56 +97,59 @@ void setup() {
   out->SetPinout(0, 0, 25);    // Enable DAC mode on GPIO25
 
   // Setup HTTP POST endpoint for receiving audio
-  server.on(
-    "/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
-    [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-      Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
+  server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+            [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+              Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
 
-      if (index == 0) {
-        Serial.println("Receiving audio data...");
-        audioFile = LittleFS.open("/audio.wav", FILE_WRITE);
-        if (!audioFile) {
-          Serial.println("Failed to open file for writing");
-          request->send(500, "text/plain", "Failed to open file for writing");
-          return;
-        }
-      }
+              if (index == 0) {
+                Serial.println("Receiving audio data...");
+                audioFile = LittleFS.open("/audio.wav", FILE_WRITE);
+                if (!audioFile) {
+                  Serial.println("Failed to open file for writing");
+                  request->send(500, "text/plain", "Failed to open file for writing");
+                  return;
+                }
+              }
 
-      // Write received data to the file
-      if (audioFile) {
-        audioFile.write(data, len);
-      }
+              // Write received data to the file
+              if (audioFile) {
+                audioFile.write(data, len);
+              }
 
-      if (index + len == total) {
-        Serial.println("Audio data received, finalizing file...");
-        if (audioFile) {
-          audioFile.close();
-        }
+              if (index + len == total) {
+                Serial.println("Audio data received, finalizing file...");
+                if (audioFile) {
+                  audioFile.close();
+                }
 
-        // Stop previous playback if running
-        if (wav && wav->isRunning()) {
-          wav->stop();
-          delete wav;
-          wav = nullptr;
-        }
-        if (fileSource) {
-          delete fileSource;
-          fileSource = nullptr;
-        }
+                // Stop previous playback if running
+                if (wav && wav->isRunning()) {
+                  wav->stop();
+                  delete wav;
+                  wav = nullptr;
+                }
+                if (fileSource) {
+                  delete fileSource;
+                  fileSource = nullptr;
+                }
 
-        // Initialize WAV playback
-        fileSource = new AudioFileSourceLittleFS("/audio.wav");
-        wav = new AudioGeneratorWAV();
-        if (wav->begin(fileSource, out)) {
-          Serial.println("Audio playback started");
-          request->send(200, "text/plain", "Audio received and playing");
-        } else {
-          Serial.println("Failed to start WAV decoder!");
-          request->send(500, "text/plain", "Failed to start WAV decoder");
-        }
-      }
-    });
+                // Initialize WAV playback
+                fileSource = new AudioFileSourceLittleFS("/audio.wav");
+                wav = new AudioGeneratorWAV();
+                if (wav->begin(fileSource, out)) {
+                  Serial.println("Audio playback started");
+                  request->send(200, "text/plain", "Audio received and playing");
+                } else {
+                  Serial.println("Failed to start WAV decoder!");
+                  request->send(500, "text/plain", "Failed to start WAV decoder");
+                }
+              }
+            });
 
+  
+  
+  
+  
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
     // Send WAV header at the beginning
@@ -190,10 +193,10 @@ void loop() {
       Serial.println("Audio playback finished.");
     }
   }
-  yield();     // Feed the watchdog timer
-  delay(100);  // Small delay to prevent watchdog reset
+  // yield();     // Feed the watchdog timer
+  // delay(100);  // Small delay to prevent watchdog reset
 
   // Monitor memory usage
-  Serial.print("Free heap: ");
-  Serial.println(ESP.getFreeHeap());
+  // Serial.print("Free heap: ");
+  // Serial.println(ESP.getFreeHeap());
 }
