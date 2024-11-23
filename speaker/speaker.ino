@@ -15,7 +15,7 @@ AudioOutputI2S* out = nullptr;
 AudioFileSourceLittleFS* fileSource = nullptr;
 
 // Async server
-AsyncWebServer server(82);
+AsyncWebServer server(81);
 
 void setup() {
   // Start serial communication
