@@ -1,88 +1,87 @@
 #include <WiFi.h>
-#include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
-#include <AudioOutputI2S.h>
-#include <AudioGeneratorMP3.h>
-#include <AudioFileSourceSPIFFS.h>
-#include <FS.h>
-#include <SPIFFS.h>
+#include "AudioGeneratorWAV.h"
+#include "AudioOutputI2S.h"
 
-// Wi-Fi credentials
-const char *ssid = "iPhone";
-const char *password = "Alamak323";
+// WiFi credentials
+const char* ssid = "iPhone";
+const char* password = "Alamak323";
 
 // Audio objects
-AudioGeneratorMP3 *mp3;
-AudioFileSourceSPIFFS *fileSource;
-AudioOutputI2S *out;
+AudioGeneratorWAV *wav = nullptr;
+AudioOutputI2S *out = nullptr;
 
-// Web server
+// Async server
 AsyncWebServer server(81);
 
+// Temporary buffer for received audio
+#define AUDIO_BUFFER_SIZE 4096
+uint8_t audioBuffer[AUDIO_BUFFER_SIZE];
+size_t audioBufferIndex = 0;
+
 void setup() {
+  // Start serial communication
   Serial.begin(115200);
 
-  // Connect to Wi-Fi
+  // Connect to WiFi
+  Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to Wi-Fi...");
+    Serial.println("Waiting for WiFi connection...");
   }
-  Serial.println("Connected to Wi-Fi!");
+  Serial.println("WiFi connected!");
 
-  // Initialize SPIFFS
-  if (!SPIFFS.begin()) {
-    Serial.println("SPIFFS Mount Failed");
-    return;
-  }
+  // Configure I2S output for audio playback
+  out = new AudioOutputI2S();
+  out->SetOutputModeMono(true); // Mono output
+  out->SetGain(0.2);            // Adjust volume (0.0 to 1.0)
+  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
 
-  // Initialize audio output (DAC output)
-  out = new AudioOutputI2S(0, 1);  // Use DAC pins
-  out->SetPinout(25, 26, -1);      // GPIO25 for Left, GPIO26 for Right
-  out->SetOutputModeMono(true);    // Mono output for LM386
-  mp3 = new AudioGeneratorMP3();
+  // Set up HTTP POST endpoint for receiving audio
+  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+            [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+              if (index == 0) {
+                Serial.println("Receiving audio data...");
+                audioBufferIndex = 0;
+              }
 
-  // Start web server
-  server.on(
-    "/audio", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
-    [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-      if (index == 0) {
-        Serial.println("Receiving audio data...");
-        File file = SPIFFS.open("/audio.mp3", FILE_WRITE);
-        if (!file) {
-          Serial.println("Failed to open file for writing");
-          return;
-        }
-        file.close();
-      }
+              // Append received data to buffer
+              if (audioBufferIndex + len <= AUDIO_BUFFER_SIZE) {
+                memcpy(audioBuffer + audioBufferIndex, data, len);
+                audioBufferIndex += len;
+              }
 
-      // Append data to file
-      File file = SPIFFS.open("/audio.mp3", FILE_APPEND);
-      if (file) {
-        file.write(data, len);
-        file.close();
-      }
+              // When all data is received
+              if (index + len == total) {
+                Serial.println("Audio data received, starting playback...");
 
-      if (index + len == total) {  // When full audio data is received
-        Serial.println("Audio data received!");
-        fileSource = new AudioFileSourceSPIFFS("/audio.mp3");
-        if (mp3->begin(fileSource, out)) {
-          Serial.println("Playing audio...");
-        } else {
-          Serial.println("Failed to start audio playback");
-        }
-      }
-    });
+                // Stop previous playback if running
+                if (wav && wav->isRunning()) {
+                  wav->stop();
+                }
 
+                // Initialize WAV playback
+                wav = new AudioGeneratorWAV();
+                wav->begin(new AudioFileSourceBuffer(audioBuffer, audioBufferIndex), out);
+
+                // Respond to the client
+                request->send(200, "text/plain", "Audio received and playing");
+              }
+            });
+
+  // Start the server
   server.begin();
-  Serial.println("Server started!");
 }
 
 void loop() {
-  if (mp3->isRunning()) {
-    if (!mp3->loop()) {
-      mp3->stop();
-      Serial.println("Audio playback finished");
+  // Process the audio stream (if active)
+  if (wav != nullptr && wav->isRunning()) {
+    if (!wav->loop()) {
+      wav->stop();
+      delete wav;
+      wav = nullptr;
+      Serial.println("Audio playback finished.");
     }
   }
 }
