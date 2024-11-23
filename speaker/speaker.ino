@@ -37,6 +37,8 @@ void setup() {
   // Set up HTTP POST endpoint for receiving audio
   server.on("/audio", HTTP_POST, [](AsyncWebServerRequest *request){
     // Check if the request contains a file
+        Serial.println("Got smth");
+
     if (request->hasParam("file", true)) {
       // Get the file as a parameter
       const AsyncWebParameter* param = request->getParam("file", true);
