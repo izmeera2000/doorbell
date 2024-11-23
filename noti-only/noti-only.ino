@@ -1,7 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <Crypto.h>
-#include <SHA256.h>
+#include <esp_system.h>
+#include <string.h>
+#include <mbedtls/md.h> // For HMAC-SHA256
 
 // Wi-Fi credentials
 const char* ssid = "iPhone";
@@ -25,16 +26,19 @@ String createAuthSignature(String data) {
   unsigned long timestamp = millis() / 1000;  // Use timestamp in seconds
   String stringToHash = "/apps/" + app_id + "/events?body=" + data + "&auth_key=" + key + "&auth_timestamp=" + String(timestamp) + "&auth_version=1.0";
   
-  // HMAC-SHA256 hashing
-  byte hmacHash[SHA256_SIZE];
-  HMAC<SHA256> hmac;
-  hmac.begin(secret.c_str(), secret.length());
-  hmac.update(stringToHash.c_str(), stringToHash.length());
-  hmac.end(hmacHash);
+  // HMAC-SHA256 hashing using mbedtls
+  unsigned char hmacHash[32]; // HMAC-SHA256 produces a 32-byte hash
+  mbedtls_md_context_t ctx;
+  mbedtls_md_init(&ctx);
+  mbedtls_md_setup(&ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
+  mbedtls_md_hmac_starts(&ctx, (const unsigned char*)secret.c_str(), secret.length());
+  mbedtls_md_hmac_update(&ctx, (const unsigned char*)stringToHash.c_str(), stringToHash.length());
+  mbedtls_md_hmac_finish(&ctx, hmacHash);
+  mbedtls_md_free(&ctx);
 
   // Convert the hash result to a hex string for the signature
   String signature = "";
-  for (int i = 0; i < SHA256_SIZE; i++) {
+  for (int i = 0; i < 32; i++) {
     signature += String(hmacHash[i], HEX);
   }
   return signature;
