@@ -9,9 +9,9 @@ const char* ssid = "iPhone";
 const char* password = "Alamak323";
 
 // Audio objects
-AudioGeneratorWAV *wav;
-AudioFileSourceHTTPStream *file;
-AudioOutputI2S *out;
+AudioGeneratorWAV* wav;
+AudioFileSourceHTTPStream* file;
+AudioOutputI2S* out;
 
 AsyncWebServer server(81);
 
@@ -30,45 +30,53 @@ void setup() {
 
   // Configure I2S output for audio playback
   out = new AudioOutputI2S();
-  out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.1);            // Adjust volume (0.0 to 1.0)
-  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
+  out->SetOutputModeMono(true);  // Mono output
+  out->SetGain(0.1);             // Adjust volume (0.0 to 1.0)
+  out->SetPinout(0, 0, 25);      // Use GPIO25 for DAC (BCK and WS set to 0)
 
-  // Set up HTTP POST endpoint for receiving audio
-  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest *request){
-    // Check if the request contains a file
-        Serial.println("Got smth");
+  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest* request) {
+    Serial.println("Got request for /audio");
 
-    if (request->hasParam("file", true)) {
-      // Get the file as a parameter
-      const AsyncWebParameter* param = request->getParam("file", true);
+    // Create a buffer to store the incoming audio data
+    int contentLength = request->contentLength();
+    if (contentLength > 0) {
+      uint8_t* audioData = new uint8_t[contentLength];
 
-      // Directly stream the audio data without storing it
-      if (param->value().length() > 0) {
-        Serial.println("Streaming audio data to speaker...");
-        
-        // Set up the WAV stream
-        AudioFileSourceHTTPStream* stream = new AudioFileSourceHTTPStream(param->value().c_str());
-        wav = new AudioGeneratorWAV();
-        
-        // Start audio playback
-        if (wav->begin(stream, out)) {
-          Serial.println("Audio streaming started...");
-        } else {
-          Serial.println("Failed to start WAV decoder!");
-          request->send(500, "text/plain", "Failed to stream audio");
-          return;
-        }
-        
-        // Return success response
+      // Read the incoming audio data
+      int bytesRead = request->args();
+      int index = 0;
+      while (request->available()) {
+        audioData[index++] = request->read();
+      }
+
+      // Ensure the correct length of the read data
+      if (index != contentLength) {
+        Serial.println("Error: Incorrect data length received.");
+        request->send(400, "text/plain", "Failed to receive full audio data");
+        return;
+      }
+
+      // Now handle the audio data (e.g., stream it to the speaker)
+      Serial.println("Streaming audio data to speaker...");
+
+      // Assuming 'audioData' now contains the raw audio data
+      AudioFileSourceMemory* stream = new AudioFileSourceMemory(audioData, contentLength);
+      wav = new AudioGeneratorWAV();
+
+      if (wav->begin(stream, out)) {
+        Serial.println("Audio streaming started...");
         request->send(200, "text/plain", "Audio uploaded and streaming started");
       } else {
-        request->send(400, "text/plain", "Empty audio data");
+        Serial.println("Failed to start WAV decoder!");
+        request->send(500, "text/plain", "Failed to stream audio");
       }
+
+      delete[] audioData;  // Clean up allocated memory
     } else {
-      request->send(400, "text/plain", "No file uploaded");
+      request->send(400, "text/plain", "No audio data received");
     }
   });
+
 
   // Start the server
   server.begin();
