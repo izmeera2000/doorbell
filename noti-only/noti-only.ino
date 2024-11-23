@@ -31,12 +31,13 @@ String generateBodyMD5(String body) {
   mbedtls_md5_finish(&ctx, hash);
   mbedtls_md5_free(&ctx);
 
-  // Convert MD5 hash to hex string
+  // Convert MD5 hash to hex string and ensure it's lowercase
   String body_md5 = "";
   for (int i = 0; i < 16; i++) {
-    body_md5 += String(hash[i], HEX);
+    body_md5 += String(hash[i], HEX);  // Convert to hex
   }
-  return body_md5;
+  
+  return body_md5; // Return MD5 hash in hexadecimal form (upper case by default)
 }
 
 // Function to create the authentication signature
@@ -79,6 +80,9 @@ void sendPusherNotification() {
 
   // Generate MD5 hash of the body
   String body_md5 = generateBodyMD5(data);
+  
+  // Convert body_md5 to lowercase
+  body_md5.toLowerCase();
 
   // Create the authentication signature
   String signature = createAuthSignature(data, timestamp, body_md5);
