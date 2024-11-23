@@ -31,7 +31,7 @@ void setup() {
   // Configure I2S output for audio playback
   out = new AudioOutputI2S();
   out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.2);            // Adjust volume (0.0 to 1.0)
+  out->SetGain(0.1);            // Adjust volume (0.0 to 1.0)
   out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
 
   // Set up HTTP POST endpoint for receiving audio

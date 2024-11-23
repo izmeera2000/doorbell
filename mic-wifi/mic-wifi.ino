@@ -2,7 +2,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
- 
+
 // Wi-Fi Credentials
 const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";   // Replace with your Wi-Fi Password
@@ -10,7 +10,7 @@ const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 AsyncWebServer server(82);
 
 #define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 512
+#define SAMPLE_BUFFER_SIZE 128  // Reduced buffer size for stability
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -37,14 +37,21 @@ void setup() {
 
   // Initialize Wi-Fi connection
   WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
+  int retries = 0;
+  while (WiFi.status() != WL_CONNECTED && retries < 10) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
+    retries++;
   }
-  Serial.println("Connected to WiFi");
-  Serial.println(WiFi.localIP());
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.println("Connected to WiFi");
+    Serial.println(WiFi.localIP());
+  } else {
+    Serial.println("Wi-Fi connection failed");
+    return;  // Abort if Wi-Fi connection fails
+  }
 
-  // I2S configuration
+  // I2S config
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
@@ -56,9 +63,19 @@ void setup() {
     .dma_buf_len = SAMPLE_BUFFER_SIZE
   };
 
-  // Initialize I2S
-  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
-  i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
+  // Initialize I2S driver
+  esp_err_t err = i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  if (err != ESP_OK) {
+    Serial.println("I2S driver installation failed");
+    return;
+  }
+
+  // Initialize I2S pins
+  err = i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
+  if (err != ESP_OK) {
+    Serial.println("I2S pin setup failed");
+    return;
+  }
 
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
@@ -68,12 +85,18 @@ void setup() {
         memcpy(buffer, wav_header, sizeof(wav_header));
         return sizeof(wav_header);
       }
+
       // Read audio samples from I2S
       size_t bytesRead;
-      i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
+      esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
+      if (result != ESP_OK) {
+        Serial.print("I2S read error: ");
+        Serial.println(result);
+      }
+
       return bytesRead;
     });
-    
+
     // Set headers to allow for streaming
     response->addHeader("Content-Type", "audio/wav");
     response->addHeader("Transfer-Encoding", "chunked");
@@ -83,16 +106,14 @@ void setup() {
     request->send(response);
   });
 
+  // Start the server
   server.begin();
- }
+}
 
 void loop() {
-  // Feed the watchdog periodically to prevent resets
-   
-  // Monitor memory usage for debugging
+  yield();  // Feed the watchdog timer to prevent reset
+  delay(10000);  // Monitor memory usage and prevent crashing
+  // Uncomment for debug
   // Serial.print("Free heap: ");
   // Serial.println(ESP.getFreeHeap());
-  delay(10000);
-  
-  // delay(1000);  // Slow down the loop for easier debugging and stability
 }
