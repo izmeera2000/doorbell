@@ -1,23 +1,21 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include "AudioGeneratorWAV.h"
-#include "AudioOutputI2S.h"
+#include <AudioGeneratorWAV.h>
+#include <AudioOutputI2S.h>
+#include <AudioFileSourceSPIFFS.h>
+#include <SPIFFS.h>
 
 // WiFi credentials
 const char* ssid = "iPhone";
 const char* password = "Alamak323";
 
 // Audio objects
-AudioGeneratorWAV *wav = nullptr;
-AudioOutputI2S *out = nullptr;
+AudioGeneratorWAV* wav = nullptr;
+AudioOutputI2S* out = nullptr;
+AudioFileSourceSPIFFS* fileSource = nullptr;
 
 // Async server
-AsyncWebServer server(81);
-
-// Temporary buffer for received audio
-#define AUDIO_BUFFER_SIZE 4096
-uint8_t audioBuffer[AUDIO_BUFFER_SIZE];
-size_t audioBufferIndex = 0;
+AsyncWebServer server(82);
 
 void setup() {
   // Start serial communication
@@ -32,6 +30,12 @@ void setup() {
   }
   Serial.println("WiFi connected!");
 
+  // Initialize SPIFFS
+  if (!SPIFFS.begin()) {
+    Serial.println("SPIFFS mount failed!");
+    return;
+  }
+
   // Configure I2S output for audio playback
   out = new AudioOutputI2S();
   out->SetOutputModeMono(true); // Mono output
@@ -43,30 +47,46 @@ void setup() {
             [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
               if (index == 0) {
                 Serial.println("Receiving audio data...");
-                audioBufferIndex = 0;
+                File file = SPIFFS.open("/audio.wav", FILE_WRITE);
+                if (!file) {
+                  Serial.println("Failed to open file for writing");
+                  request->send(500, "text/plain", "Failed to open file for writing");
+                  return;
+                }
+                file.close();
               }
 
-              // Append received data to buffer
-              if (audioBufferIndex + len <= AUDIO_BUFFER_SIZE) {
-                memcpy(audioBuffer + audioBufferIndex, data, len);
-                audioBufferIndex += len;
+              // Append received data to the file
+              File file = SPIFFS.open("/audio.wav", FILE_APPEND);
+              if (file) {
+                file.write(data, len);
+                file.close();
               }
 
-              // When all data is received
               if (index + len == total) {
                 Serial.println("Audio data received, starting playback...");
 
                 // Stop previous playback if running
                 if (wav && wav->isRunning()) {
                   wav->stop();
+                  delete wav;
+                  wav = nullptr;
+                }
+                if (fileSource) {
+                  delete fileSource;
+                  fileSource = nullptr;
                 }
 
                 // Initialize WAV playback
+                fileSource = new AudioFileSourceSPIFFS("/audio.wav");
                 wav = new AudioGeneratorWAV();
-                wav->begin(new AudioFileSourceBuffer(audioBuffer, audioBufferIndex), out);
-
-                // Respond to the client
-                request->send(200, "text/plain", "Audio received and playing");
+                if (wav->begin(fileSource, out)) {
+                  Serial.println("Audio playback started");
+                  request->send(200, "text/plain", "Audio received and playing");
+                } else {
+                  Serial.println("Failed to start WAV decoder!");
+                  request->send(500, "text/plain", "Failed to start WAV decoder");
+                }
               }
             });
 
