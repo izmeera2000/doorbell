@@ -13,7 +13,7 @@ AudioGeneratorWAV *wav;
 AudioFileSourceHTTPStream *file;
 AudioOutputI2S *out;
 
-AsyncWebServer server(82);
+AsyncWebServer server(81);
 
 void setup() {
   // Start serial communication
