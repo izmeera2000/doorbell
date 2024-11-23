@@ -1,9 +1,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <WiFiClientSecure.h>
-#include <Crypto.h>
-#include <HMAC.h>
 #include <SHA256.h>
+#include <WiFiClient.h>
 
 // Wi-Fi credentials
 const char* ssid = "iPhone";
@@ -27,17 +25,16 @@ String createAuthSignature(String data) {
   unsigned long timestamp = millis() / 1000;  // Use timestamp in seconds
   String stringToHash = "/apps/" + app_id + "/events?body=" + data + "&auth_key=" + key + "&auth_timestamp=" + String(timestamp) + "&auth_version=1.0";
   
-  // HMAC-SHA256 hashing with secret using the Crypto library
-  byte hmacResult[32];  // SHA256 produces a 32-byte hash
-  HMAC<SHA256> hmac;
-  hmac.begin(secret.c_str(), secret.length());
-  hmac.update(stringToHash.c_str(), stringToHash.length());
-  hmac.end(hmacResult);
+  // SHA256 hashing
+  SHA256 sha256;
+  sha256.update(stringToHash.c_str(), stringToHash.length());
+  byte hash[SHA256::HASH_SIZE];
+  sha256.finalize(hash, sizeof(hash));
 
   // Convert the hash result to a hex string for the signature
   String signature = "";
-  for (int i = 0; i < 32; i++) {
-    signature += String(hmacResult[i], HEX);
+  for (int i = 0; i < SHA256::HASH_SIZE; i++) {
+    signature += String(hash[i], HEX);
   }
   return signature;
 }
