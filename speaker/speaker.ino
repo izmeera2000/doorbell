@@ -2,19 +2,19 @@
 #include <ESPAsyncWebServer.h>
 #include <FS.h>
 #include <SPIFFS.h>
-#include <Audio.h>
-#include <SPI.h>
+#include <AudioFileSourceSPIFFS.h>
+#include <AudioGeneratorWAV.h>
+#include <AudioOutputI2S.h>  // I2S for audio output
 
 const char* ssid = "iPhone";
 const char* password = "Alamak323";
 
-AsyncWebServer server(80);
+AsyncWebServer server(81);
 
-// Create an Audio class object to handle decoding and playback
-Audio audio;
-AudioFileSourceICYStream audioStream;
-AudioGeneratorMP3 mp3;
-AudioOutputDAC dac;  // Use internal DAC (GPIO 25)
+// Create objects for audio
+AudioFileSourceSPIFFS fileSource;
+AudioGeneratorWAV wavDecoder;
+AudioOutputI2S audioOutput;  // Use I2S for audio output
 
 void setup() {
   Serial.begin(115200);
@@ -27,32 +27,31 @@ void setup() {
   }
   Serial.println("Connected to WiFi");
 
-  // Initialize SPIFFS (for storing files locally if needed)
+  // Initialize SPIFFS (for storing files locally)
   if (!SPIFFS.begin(true)) {
     Serial.println("Failed to mount SPIFFS");
     return;
   }
 
-  // Initialize the Audio system (DAC output)
-  audio.begin();
-  audioOutput.begin();
+  // Initialize the I2S for audio output
+  audioOutput.begin();  // Uses default I2S configuration for output
 
   // Serve the audio stream
-  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request){
-    // Open the audio file from SPIFFS (can be changed to remote streaming)
-    File audioFile = SPIFFS.open("/audio.mp3", "r");
+  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
+    // Open the WAV file from SPIFFS
+    File audioFile = SPIFFS.open("/audio.wav", "r");
     if (!audioFile) {
       request->send(404, "text/plain", "File Not Found");
       return;
     }
 
-    // Set up the audio generator (MP3 in this example)
-    audioStream.open(audioFile);
-    mp3.begin(audioStream, dac);
-    
-    // Play the audio
-    while (mp3.isRunning()) {
-      mp3.loop();
+    // Set up the file source for WAV
+    fileSource.open(audioFile);
+    wavDecoder.begin(fileSource, audioOutput);
+
+    // Stream and play the WAV file
+    while (wavDecoder.isRunning()) {
+      wavDecoder.loop(); // Decode and send audio to I2S
     }
 
     // Close the file after playback
@@ -60,7 +59,7 @@ void setup() {
     request->send(200, "text/plain", "Audio Streaming Complete");
   });
 
-  // Start the web server
+  // Start the server
   server.begin();
 }
 
