@@ -1,57 +1,65 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 
-const char* ssid = "Wokwi-GUEST";
-const char* password = "";
+// Replace with your WiFi credentials
+const char* ssid = "iPhone";
+const char* password = "Alamak323";
 
-const char* pusherKey = "3ef10ab69edd1c712eeb";
-const char* pusherCluster = "ap1";
-const char* pusherSecret = "d21e52ac4ffabdc37745";
-const char* channelName = "doorbell";
-const char* eventName = "ring";
+
+// Pusher Channels API URL
+const String PUSHER_API_URL = "https://api.pusherapp.com/apps/YOUR_APP_ID/events";
+const String API_KEY = "3ef10ab69edd1c712eeb";  // Your Pusher API key
+const String CLUSTER = "ap1";  // Your Pusher cluster
+
+// Define channel and event name
+const String CHANNEL_NAME = "doorbell";
+const String EVENT_NAME = "ring";
 
 void setup() {
   Serial.begin(115200);
-  WiFi.begin(ssid, password);
 
+  // Connect to WiFi
+  WiFi.begin(ssid, password);
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
   }
+  
   Serial.println("Connected to WiFi");
+  
+  // Send event to Pusher
+  sendPusherEvent();
 }
 
 void loop() {
-  // Simulate a doorbell ring
-  if (digitalRead(4) == HIGH) {  // Replace with your button pin
-    sendNotification();
-    delay(5000);  // Debounce or avoid rapid calls
-  }
+  // Nothing to do here
 }
 
-void sendNotification() {
-  if (WiFi.status() == WL_CONNECTED) {
-    HTTPClient http;
-    String url = "https://" + String(pusherCluster) + ".pusher.com/apps/YOUR_APP_ID/events";
+void sendPusherEvent() {
+  HTTPClient http;
+  
+  // Set up the HTTP request
+  http.begin(PUSHER_API_URL);
+  http.addHeader("Content-Type", "application/json");
+  http.addHeader("Authorization", "Bearer " + API_KEY);  // Authorization header
+  
+  // Build the JSON payload
+  String payload = String("{")
+    + "\"name\": \"" + EVENT_NAME + "\","
+    + "\"channel\": \"" + CHANNEL_NAME + "\","
+    + "\"data\": {\"message\": \"Hello from ESP32!\"}"
+    + "}";
 
-    String payload = "{"
-                     "\"name\": \"" + String(eventName) + "\","
-                     "\"channels\": [\"" + String(channelName) + "\"],"
-                     "\"data\": \"{\\\"message\\\": \\\"Doorbell Pressed!\\\"}\""
-                     "}";
-
-    http.begin(url.c_str());
-    http.addHeader("Content-Type", "application/json");
-    http.addHeader("Authorization", "Bearer " + String(pusherSecret));
-    int httpResponseCode = http.POST(payload);
-
-    if (httpResponseCode > 0) {
-      Serial.printf("Notification sent! Response code: %d\n", httpResponseCode);
-    } else {
-      Serial.printf("Error sending notification. HTTP error: %s\n", http.errorToString(httpResponseCode).c_str());
-    }
-    http.end();
+  // Send the HTTP POST request
+  int httpResponseCode = http.POST(payload);
+  
+  if (httpResponseCode > 0) {
+    Serial.println("Event sent to Pusher successfully!");
+    Serial.println("HTTP Response code: " + String(httpResponseCode));
   } else {
-    Serial.println("WiFi not connected");
+    Serial.println("Error sending event to Pusher: " + String(httpResponseCode));
   }
+  
+  http.end();  // Free resources
 }
