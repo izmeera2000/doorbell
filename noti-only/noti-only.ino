@@ -1,5 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClient.h>
+#include <Hash.h>
+#include <SHA256.h>
 
 // Wi-Fi credentials
 const char* ssid = "iPhone";
@@ -7,30 +10,54 @@ const char* password = "Alamak323";
 
 // Pusher API credentials
 const String app_id = "1897337";
-const String key = "3ef10ab69edd1c712eeb";  // Use key here for Authorization
-const String secret = "d21e52ac4ffabdc37745";  // Secret is typically used for authentication
+const String key = "3ef10ab69edd1c712eeb";
+const String secret = "d21e52ac4ffabdc37745";
 const String cluster = "ap1";
 
 // Pusher API URL
-const String url = "https://api.pusherapp.com/apps/" + app_id + "/events";
+const String url = "http://api-" + cluster + ".pusher.com/apps/" + app_id + "/events";
 
 // Set the channel and event to trigger
 const String channel = "doorbell";
 const String event = "bell";
 
+// Function to create the authentication signature
+String createAuthSignature(String data) {
+  unsigned long timestamp = millis() / 1000;  // Use timestamp in seconds
+  String stringToHash = "/apps/" + app_id + "/events?body=" + data + "&auth_key=" + key + "&auth_timestamp=" + String(timestamp) + "&auth_version=1.0";
+  
+  // HMAC-SHA256 hashing with secret
+  byte hmacResult[SHA256_SIZE];
+  HMAC<SHA256> hmac;
+  hmac.begin(secret.c_str(), secret.length());
+  hmac.update(stringToHash.c_str(), stringToHash.length());
+  hmac.end(hmacResult);
+
+  // Convert the hash result to a hex string for the signature
+  String signature = "";
+  for (int i = 0; i < SHA256_SIZE; i++) {
+    signature += String(hmacResult[i], HEX);
+  }
+  return signature;
+}
+
+// Function to send Pusher notification
 void sendPusherNotification() {
   HTTPClient http;
+  WiFiClient client;
 
   // Build the JSON data to send
   String data = "{\"name\":\"" + event + "\",\"channel\":\"" + channel + "\",\"data\":\"{\\\"message\\\":\\\"Doorbell pressed!\\\"}\"}";
 
-  // Set the Authorization header
-  String authHeader = "Bearer " + key;  // Use the key for authorization header
+  // Create the authentication signature
+  String signature = createAuthSignature(data);
+
+  // Construct the full URL with query parameters
+  String fullUrl = url + "?body=" + data + "&auth_key=" + key + "&auth_timestamp=" + String(millis() / 1000) + "&auth_version=1.0&auth_signature=" + signature;
 
   // Initialize HTTP request
-  http.begin(url);
+  http.begin(client, fullUrl);
   http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", authHeader);
 
   // Send the POST request to Pusher
   int httpResponseCode = http.POST(data);
