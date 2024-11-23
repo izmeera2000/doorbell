@@ -48,6 +48,8 @@ void setup() {
   // Set up HTTP POST endpoint for receiving audio
   server.on("/audio", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
             [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+              Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
+
               if (index == 0) {
                 Serial.println("Receiving audio data...");
                 audioFile = LittleFS.open("/audio.wav", FILE_WRITE);
