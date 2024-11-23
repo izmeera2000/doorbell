@@ -100,8 +100,8 @@ void loop() {
   // Process the audio stream (if active)
   if (wav != nullptr && wav->isRunning()) {
     if (wav->loop()) {
-      // Access the last processed sample
-      int16_t sample = wav->lastSample[0]; // Left channel (mono in your case)
+      // Read the next sample (mono in your case)
+      int16_t sample = wav->read(); // This will give the next audio sample
       
       // Map the sample value to PWM signal
       analogWrite(AUDIO_PIN, (sample + 32768) / 256); // Adjust volume (sample ranges from -32768 to 32767)
@@ -113,4 +113,5 @@ void loop() {
     }
   }
 }
+
 
