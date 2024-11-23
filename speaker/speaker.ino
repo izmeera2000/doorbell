@@ -2,8 +2,8 @@
 #include <ESPAsyncWebServer.h>
 #include <AudioGeneratorWAV.h>
 #include <AudioOutputI2S.h>
-#include <AudioFileSourceSPIFFS.h>
-#include <SPIFFS.h>
+#include <AudioFileSourceLittleFS.h>
+#include <LittleFS.h>
 
 // WiFi credentials
 const char* ssid = "iPhone";
@@ -12,7 +12,7 @@ const char* password = "Alamak323";
 // Audio objects
 AudioGeneratorWAV* wav = nullptr;
 AudioOutputI2S* out = nullptr;
-AudioFileSourceSPIFFS* fileSource = nullptr;
+AudioFileSourceLittleFS* fileSource = nullptr;
 
 // Async server
 AsyncWebServer server(82);
@@ -30,9 +30,9 @@ void setup() {
   }
   Serial.println("WiFi connected!");
 
-  // Initialize SPIFFS
-  if (!SPIFFS.begin()) {
-    Serial.println("SPIFFS mount failed!");
+  // Initialize LittleFS
+  if (!LittleFS.begin()) {
+    Serial.println("LittleFS mount failed!");
     return;
   }
 
@@ -47,7 +47,7 @@ void setup() {
             [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
               if (index == 0) {
                 Serial.println("Receiving audio data...");
-                File file = SPIFFS.open("/audio.wav", FILE_WRITE);
+                File file = LittleFS.open("/audio.wav", FILE_WRITE);
                 if (!file) {
                   Serial.println("Failed to open file for writing");
                   request->send(500, "text/plain", "Failed to open file for writing");
@@ -57,7 +57,7 @@ void setup() {
               }
 
               // Append received data to the file
-              File file = SPIFFS.open("/audio.wav", FILE_APPEND);
+              File file = LittleFS.open("/audio.wav", FILE_APPEND);
               if (file) {
                 file.write(data, len);
                 file.close();
@@ -78,7 +78,7 @@ void setup() {
                 }
 
                 // Initialize WAV playback
-                fileSource = new AudioFileSourceSPIFFS("/audio.wav");
+                fileSource = new AudioFileSourceLittleFS("/audio.wav");
                 wav = new AudioGeneratorWAV();
                 if (wav->begin(fileSource, out)) {
                   Serial.println("Audio playback started");
