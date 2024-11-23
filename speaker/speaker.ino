@@ -1,8 +1,6 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include "AudioFileSourceMemory.h"
-#include "AudioGeneratorWAV.h"
-#include "AudioOutputI2S.h"
+#include <ESP8266Audio.h>  // Using ESP8266Audio library for audio playback
 
 // WiFi credentials
 const char* ssid = "iPhone";
@@ -11,6 +9,7 @@ const char* password = "Alamak323";
 // Audio objects
 AudioGeneratorWAV *wav;
 AudioOutputI2S *out;
+AudioFileSourceBuffer *audioSource = nullptr;
 
 AsyncWebServer server(81);
 
@@ -49,11 +48,11 @@ void setup() {
         if (index + len == contentLength) {
           Serial.println("Finished receiving audio data.");
           // Process the audio data after receiving all of it
-          AudioFileSourceMemory* stream = new AudioFileSourceMemory(audioData, contentLength);
+          audioSource = new AudioFileSourceBuffer(audioData, contentLength);
           wav = new AudioGeneratorWAV();
 
           // Begin streaming the audio data
-          if (wav->begin(stream, out)) {
+          if (wav->begin(audioSource, out)) {
             Serial.println("Audio streaming started...");
             request->send(200, "text/plain", "Audio uploaded and streaming started");
           } else {
