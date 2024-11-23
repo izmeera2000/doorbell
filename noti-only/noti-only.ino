@@ -1,7 +1,7 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <Crypto.h>
 #include <SHA256.h>
-#include <WiFiClient.h>
 
 // Wi-Fi credentials
 const char* ssid = "iPhone";
@@ -25,16 +25,17 @@ String createAuthSignature(String data) {
   unsigned long timestamp = millis() / 1000;  // Use timestamp in seconds
   String stringToHash = "/apps/" + app_id + "/events?body=" + data + "&auth_key=" + key + "&auth_timestamp=" + String(timestamp) + "&auth_version=1.0";
   
-  // SHA256 hashing
-  SHA256 sha256;
-  sha256.update(stringToHash.c_str(), stringToHash.length());
-  byte hash[SHA256::HASH_SIZE];
-  sha256.finalize(hash, sizeof(hash));
+  // HMAC-SHA256 hashing
+  byte hmacHash[SHA256_SIZE];
+  HMAC<SHA256> hmac;
+  hmac.begin(secret.c_str(), secret.length());
+  hmac.update(stringToHash.c_str(), stringToHash.length());
+  hmac.end(hmacHash);
 
   // Convert the hash result to a hex string for the signature
   String signature = "";
-  for (int i = 0; i < SHA256::HASH_SIZE; i++) {
-    signature += String(hash[i], HEX);
+  for (int i = 0; i < SHA256_SIZE; i++) {
+    signature += String(hmacHash[i], HEX);
   }
   return signature;
 }
@@ -42,7 +43,6 @@ String createAuthSignature(String data) {
 // Function to send Pusher notification
 void sendPusherNotification() {
   HTTPClient http;
-  WiFiClient client;
 
   // Build the JSON data to send
   String data = "{\"name\":\"" + event + "\",\"channel\":\"" + channel + "\",\"data\":\"{\\\"message\\\":\\\"Doorbell pressed!\\\"}\"}";
@@ -54,7 +54,7 @@ void sendPusherNotification() {
   String fullUrl = url + "?body=" + data + "&auth_key=" + key + "&auth_timestamp=" + String(millis() / 1000) + "&auth_version=1.0&auth_signature=" + signature;
 
   // Initialize HTTP request
-  http.begin(client, fullUrl);
+  http.begin(fullUrl);
   http.addHeader("Content-Type", "application/json");
 
   // Send the POST request to Pusher
