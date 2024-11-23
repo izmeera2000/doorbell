@@ -1,7 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
-#include <WiFiClient.h>
-#include <Hash.h>
+#include <WiFiClientSecure.h>
+#include <Crypto.h>
+#include <HMAC.h>
 #include <SHA256.h>
 
 // Wi-Fi credentials
@@ -26,8 +27,8 @@ String createAuthSignature(String data) {
   unsigned long timestamp = millis() / 1000;  // Use timestamp in seconds
   String stringToHash = "/apps/" + app_id + "/events?body=" + data + "&auth_key=" + key + "&auth_timestamp=" + String(timestamp) + "&auth_version=1.0";
   
-  // HMAC-SHA256 hashing with secret
-  byte hmacResult[SHA256_SIZE];
+  // HMAC-SHA256 hashing with secret using the Crypto library
+  byte hmacResult[32];  // SHA256 produces a 32-byte hash
   HMAC<SHA256> hmac;
   hmac.begin(secret.c_str(), secret.length());
   hmac.update(stringToHash.c_str(), stringToHash.length());
@@ -35,7 +36,7 @@ String createAuthSignature(String data) {
 
   // Convert the hash result to a hex string for the signature
   String signature = "";
-  for (int i = 0; i < SHA256_SIZE; i++) {
+  for (int i = 0; i < 32; i++) {
     signature += String(hmacResult[i], HEX);
   }
   return signature;
