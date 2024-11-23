@@ -18,7 +18,8 @@ AsyncWebServer server(82);
 // Global file handle for writing
 File audioFile;
 
-#define AUDIO_PIN 25  // GPIO pin connected to LM386
+// DAC pin for audio output (GPIO25 for example)
+const int audioPin = 25; // Change if you use a different DAC pin (GPIO26)
 
 void setup() {
   // Start serial communication
@@ -39,8 +40,8 @@ void setup() {
     return;
   }
 
-  // Configure the audio output pin
-  pinMode(AUDIO_PIN, OUTPUT); // Set the GPIO pin connected to LM386 as an output
+  // Set DAC output pin (assuming GPIO25 or GPIO26)
+  dacWrite(audioPin, 0); // Initialize the DAC output
 
   // Set up HTTP POST endpoint for receiving audio
   server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
@@ -82,7 +83,7 @@ void setup() {
                 // Initialize WAV playback
                 fileSource = new AudioFileSourceLittleFS("/audio.wav");
                 wav = new AudioGeneratorWAV();
-                if (wav->begin(fileSource, nullptr)) {  // No I2S output, we handle audio directly
+                if (wav->begin(fileSource, nullptr)) {
                   Serial.println("Audio playback started");
                   request->send(200, "text/plain", "Audio received and playing");
                 } else {
@@ -100,11 +101,17 @@ void loop() {
   // Process the audio stream (if active)
   if (wav != nullptr && wav->isRunning()) {
     if (wav->loop()) {
-      // Read the next sample (mono in your case)
-      int16_t sample = wav->read(); // This will give the next audio sample
-      
-      // Map the sample value to PWM signal
-      analogWrite(AUDIO_PIN, (sample + 32768) / 256); // Adjust volume (sample ranges from -32768 to 32767)
+      // Read an 8-bit sample from the WAV file
+      uint8_t sample = wav->ReadU8(); // Get the next audio sample (8-bit)
+
+      // Map the sample value to the range of DAC output (0-255)
+      // The DAC input range is 0-255, so we need to map the sample from a byte (0-255)
+      // You may need to adjust the mapping for higher precision if using 16-bit samples
+      int dacValue = sample; // In this case, no need for mapping since it's already 0-255
+
+      // Output the mapped sample to the DAC pin
+      dacWrite(audioPin, dacValue); // Output the audio sample to the DAC pin
+
     } else {
       wav->stop();
       delete wav;
@@ -113,5 +120,3 @@ void loop() {
     }
   }
 }
-
-
