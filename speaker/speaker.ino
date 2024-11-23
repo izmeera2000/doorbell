@@ -1,20 +1,19 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include <FS.h>
 #include <SPIFFS.h>
 #include <AudioFileSourceSPIFFS.h>
-#include <AudioGeneratorWAV.h>
-#include <AudioOutputI2S.h>  // I2S for audio output
+#include <AudioGeneratorMP3.h> // Use MP3 decoder
+#include <AudioOutputDAC.h>   // Output to ESP32 DAC (GPIO 25)
 
 const char* ssid = "iPhone";
 const char* password = "Alamak323";
 
 AsyncWebServer server(81);
 
-// Create objects for audio
+// Create objects for audio decoding and output
 AudioFileSourceSPIFFS fileSource;
-AudioGeneratorWAV wavDecoder;
-AudioOutputI2S audioOutput;  // Use I2S for audio output
+AudioGeneratorMP3 mp3Decoder;  // Use MP3 decoder (could use WAV if needed)
+AudioOutputDAC audioOutput;   // Use ESP32 DAC output (GPIO 25)
 
 void setup() {
   Serial.begin(115200);
@@ -27,31 +26,31 @@ void setup() {
   }
   Serial.println("Connected to WiFi");
 
-  // Initialize SPIFFS (for storing files locally)
+  // Initialize SPIFFS for storing files locally
   if (!SPIFFS.begin(true)) {
     Serial.println("Failed to mount SPIFFS");
     return;
   }
 
-  // Initialize the I2S for audio output
-  audioOutput.begin();  // Uses default I2S configuration for output
+  // Initialize the DAC for audio output
+  audioOutput.begin(); // Uses GPIO 25 for DAC1 output
 
   // Serve the audio stream
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // Open the WAV file from SPIFFS
-    File audioFile = SPIFFS.open("/audio.wav", "r");
+    // Open the MP3 or WAV file from SPIFFS
+    File audioFile = SPIFFS.open("/audio.mp3", "r");  // Change file name if necessary
     if (!audioFile) {
       request->send(404, "text/plain", "File Not Found");
       return;
     }
 
-    // Set up the file source for WAV
+    // Set up the file source for decoding
     fileSource.open(audioFile);
-    wavDecoder.begin(fileSource, audioOutput);
+    mp3Decoder.begin(fileSource, audioOutput);
 
-    // Stream and play the WAV file
-    while (wavDecoder.isRunning()) {
-      wavDecoder.loop(); // Decode and send audio to I2S
+    // Start decoding and playing the audio
+    while (mp3Decoder.isRunning()) {
+      mp3Decoder.loop(); // Decode and send audio to DAC
     }
 
     // Close the file after playback
