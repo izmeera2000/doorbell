@@ -3,7 +3,9 @@
 #include <ESPAsyncWebServer.h>
 #include <AudioOutputI2S.h>
 #include <AudioGeneratorMP3.h>
-#include <AudioFileSourceBuffer.h>
+#include <AudioFileSourceSPIFFS.h>
+#include <FS.h>
+#include <SPIFFS.h>
 
 // Wi-Fi credentials
 const char *ssid = "iPhone";
@@ -11,16 +13,11 @@ const char *password = "Alamak323";
 
 // Audio objects
 AudioGeneratorMP3 *mp3;
-AudioFileSourceBuffer *fileBuffer;
+AudioFileSourceSPIFFS *fileSource;
 AudioOutputI2S *out;
 
 // Web server
 AsyncWebServer server(81);
-
-// Buffer for received audio data
-#define AUDIO_BUFFER_SIZE 8192
-uint8_t audioBuffer[AUDIO_BUFFER_SIZE];
-size_t audioBufferIndex = 0;
 
 void setup() {
   Serial.begin(115200);
@@ -32,6 +29,12 @@ void setup() {
     Serial.println("Connecting to Wi-Fi...");
   }
   Serial.println("Connected to Wi-Fi!");
+
+  // Initialize SPIFFS
+  if (!SPIFFS.begin()) {
+    Serial.println("SPIFFS Mount Failed");
+    return;
+  }
 
   // Initialize audio output (DAC output)
   out = new AudioOutputI2S(0, 1);  // Use DAC pins
@@ -45,21 +48,28 @@ void setup() {
     [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
       if (index == 0) {
         Serial.println("Receiving audio data...");
-        audioBufferIndex = 0;  // Reset buffer index
+        File file = SPIFFS.open("/audio.mp3", FILE_WRITE);
+        if (!file) {
+          Serial.println("Failed to open file for writing");
+          return;
+        }
+        file.close();
       }
-      // Append data to buffer
-      if (audioBufferIndex + len <= AUDIO_BUFFER_SIZE) {
-        memcpy(audioBuffer + audioBufferIndex, data, len);
-        audioBufferIndex += len;
+
+      // Append data to file
+      File file = SPIFFS.open("/audio.mp3", FILE_APPEND);
+      if (file) {
+        file.write(data, len);
+        file.close();
       }
 
       if (index + len == total) {  // When full audio data is received
         Serial.println("Audio data received!");
-        fileBuffer = new AudioFileSourceBuffer(audioBuffer, total);
-        if (mp3->begin(fileBuffer, out)) {
+        fileSource = new AudioFileSourceSPIFFS("/audio.mp3");
+        if (mp3->begin(fileSource, out)) {
           Serial.println("Playing audio...");
         } else {
-          Serial.println("Failed to play audio");
+          Serial.println("Failed to start audio playback");
         }
       }
     });
