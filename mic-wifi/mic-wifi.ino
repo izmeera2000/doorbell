@@ -38,18 +38,16 @@ void setup() {
   // Initialize Wi-Fi connection
   WiFi.begin(ssid, password);
   int retries = 0;
-  while (WiFi.status() != WL_CONNECTED && retries < 10) {
+  while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
-    retries++;
+    if (retries++ >= 20) {
+      Serial.println("Failed to connect to WiFi.");
+      return;  // Exit if not connected after 20 retries
+    }
   }
-  if (WiFi.status() == WL_CONNECTED) {
-    Serial.println("Connected to WiFi");
-    Serial.println(WiFi.localIP());
-  } else {
-    Serial.println("Wi-Fi connection failed");
-    return;  // Abort if Wi-Fi connection fails
-  }
+  Serial.println("Connected to WiFi");
+  Serial.println(WiFi.localIP());
 
   // I2S config
   i2s_config_t i2s_config = {
@@ -89,9 +87,9 @@ void setup() {
       // Read audio samples from I2S
       size_t bytesRead;
       esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
-      if (result != ESP_OK) {
-        Serial.print("I2S read error: ");
-        Serial.println(result);
+      if (result != ESP_OK || bytesRead == 0) {
+        Serial.println("I2S read error or no data.");
+        return 0;  // Return 0 bytes if there's an issue
       }
 
       return bytesRead;
@@ -111,9 +109,14 @@ void setup() {
 }
 
 void loop() {
-  yield();  // Feed the watchdog timer to prevent reset
-  delay(10000);  // Monitor memory usage and prevent crashing
-  // Uncomment for debug
-  // Serial.print("Free heap: ");
-  // Serial.println(ESP.getFreeHeap());
+  yield();  // Feed the watchdog timer
+  delay(100);  // Small delay to prevent watchdog reset
+
+  // Monitor memory usage
+  Serial.print("Free heap: ");
+  Serial.println(ESP.getFreeHeap());
+
+  // Additional debug if needed
+  // Uncomment to view more details about Wi-Fi and server status
+  // Serial.println(WiFi.localIP());
 }
