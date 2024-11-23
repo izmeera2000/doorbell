@@ -1,83 +1,69 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include <ESP8266Audio.h>  // Using ESP8266Audio library for audio playback
+#include <FS.h>
+#include <SPIFFS.h>
+#include <Audio.h>
+#include <SPI.h>
 
-// WiFi credentials
 const char* ssid = "iPhone";
 const char* password = "Alamak323";
 
-// Audio objects
-AudioGeneratorWAV *wav;
-AudioOutputI2S *out;
-AudioFileSourceBuffer *audioSource = nullptr;
+AsyncWebServer server(80);
 
-AsyncWebServer server(81);
+// Create an Audio class object to handle decoding and playback
+Audio audio;
+AudioFileSourceICYStream audioStream;
+AudioGeneratorMP3 mp3;
+AudioOutputDAC dac;  // Use internal DAC (GPIO 25)
 
 void setup() {
-  // Start serial communication
   Serial.begin(115200);
 
-  // Connect to WiFi
-  Serial.println("Connecting to WiFi...");
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Waiting for WiFi connection...");
+    Serial.println("Connecting to WiFi...");
   }
-  Serial.println("WiFi connected!");
+  Serial.println("Connected to WiFi");
 
-  // Configure I2S output for audio playback
-  out = new AudioOutputI2S();
-  out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.1);            // Adjust volume (0.0 to 1.0)
-  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
+  // Initialize SPIFFS (for storing files locally if needed)
+  if (!SPIFFS.begin(true)) {
+    Serial.println("Failed to mount SPIFFS");
+    return;
+  }
 
-  // Set up HTTP POST endpoint for receiving audio
-  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest* request){
-    Serial.println("Received POST request for /audio");
+  // Initialize the Audio system (DAC output)
+  audio.begin();
+  audioOutput.begin();
 
-    int contentLength = request->contentLength();
-    if (contentLength > 0) {
-      // Buffer to store the audio data
-      uint8_t* audioData = new uint8_t[contentLength];
-
-      // Use request->onData() to read the incoming data in chunks
-      request->onData([audioData, contentLength](const uint8_t *data, size_t len, size_t index, size_t total) {
-        // Copy data to the buffer
-        memcpy(audioData + index, data, len);
-        if (index + len == contentLength) {
-          Serial.println("Finished receiving audio data.");
-          // Process the audio data after receiving all of it
-          audioSource = new AudioFileSourceBuffer(audioData, contentLength);
-          wav = new AudioGeneratorWAV();
-
-          // Begin streaming the audio data
-          if (wav->begin(audioSource, out)) {
-            Serial.println("Audio streaming started...");
-            request->send(200, "text/plain", "Audio uploaded and streaming started");
-          } else {
-            Serial.println("Failed to start WAV decoder!");
-            request->send(500, "text/plain", "Failed to stream audio");
-          }
-
-          delete[] audioData;  // Clean up the memory
-        }
-      });
-    } else {
-      request->send(400, "text/plain", "No audio data received");
+  // Serve the audio stream
+  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request){
+    // Open the audio file from SPIFFS (can be changed to remote streaming)
+    File audioFile = SPIFFS.open("/audio.mp3", "r");
+    if (!audioFile) {
+      request->send(404, "text/plain", "File Not Found");
+      return;
     }
+
+    // Set up the audio generator (MP3 in this example)
+    audioStream.open(audioFile);
+    mp3.begin(audioStream, dac);
+    
+    // Play the audio
+    while (mp3.isRunning()) {
+      mp3.loop();
+    }
+
+    // Close the file after playback
+    audioFile.close();
+    request->send(200, "text/plain", "Audio Streaming Complete");
   });
 
-  // Start the server
+  // Start the web server
   server.begin();
 }
 
 void loop() {
-  // Process the audio stream if it is active
-  if (wav != nullptr && wav->isRunning()) {
-    if (!wav->loop()) {
-      wav->stop();
-      Serial.println("Audio stream ended.");
-    }
-  }
+  // Nothing to do in the loop, everything is handled by the server
 }
