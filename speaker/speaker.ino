@@ -17,6 +17,9 @@ AudioFileSourceLittleFS* fileSource = nullptr;
 // Async server
 AsyncWebServer server(81);
 
+// Global file handle for writing
+File audioFile;
+
 void setup() {
   // Start serial communication
   Serial.begin(115200);
@@ -47,24 +50,24 @@ void setup() {
             [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
               if (index == 0) {
                 Serial.println("Receiving audio data...");
-                File file = LittleFS.open("/audio.wav", FILE_WRITE);
-                if (!file) {
+                audioFile = LittleFS.open("/audio.wav", FILE_WRITE);
+                if (!audioFile) {
                   Serial.println("Failed to open file for writing");
                   request->send(500, "text/plain", "Failed to open file for writing");
                   return;
                 }
-                file.close();
               }
 
-              // Append received data to the file
-              File file = LittleFS.open("/audio.wav", FILE_APPEND);
-              if (file) {
-                file.write(data, len);
-                file.close();
+              // Write received data to the file
+              if (audioFile) {
+                audioFile.write(data, len);
               }
 
               if (index + len == total) {
-                Serial.println("Audio data received, starting playback...");
+                Serial.println("Audio data received, finalizing file...");
+                if (audioFile) {
+                  audioFile.close();
+                }
 
                 // Stop previous playback if running
                 if (wav && wav->isRunning()) {
