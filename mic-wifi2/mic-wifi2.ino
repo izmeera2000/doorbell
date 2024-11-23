@@ -72,7 +72,7 @@ void setup() {
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
     .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 10,
+    .dma_buf_count = 16,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
   };
 
@@ -94,7 +94,7 @@ void setup() {
   out = new AudioOutputI2S();
   out->SetOutputModeMono(true);  // Mono output
   out->SetGain(0.1);             // Adjust volume (0.0 to 1.0)
-  out->SetPinout(-1, -1, 25);    // Enable DAC mode on GPIO25
+  out->SetPinout(0, 0, 25);    // Enable DAC mode on GPIO25
 
   // Setup HTTP POST endpoint for receiving audio
   server.on(
