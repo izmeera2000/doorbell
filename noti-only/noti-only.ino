@@ -13,6 +13,7 @@ const String API_KEY = "d21e52ac4ffabdc37745";  // Replace with your Pusher Mast
 const String CHANNEL_NAME = "doorbell";
 const String EVENT_NAME = "ring";
 
+
 void setup() {
   Serial.begin(115200);
 
@@ -52,14 +53,17 @@ void sendPusherEvent() {
   // Send the HTTP POST request
   int httpResponseCode = http.POST(payload);
   
+  // Check if request was successful
   if (httpResponseCode > 0) {
-    // Print the response code and response payload
+    // Read the response payload (string format)
     String response = http.getString();
     Serial.println("Event sent to Pusher successfully!");
     Serial.println("HTTP Response code: " + String(httpResponseCode));
-    Serial.println("Response: " + response);
+    Serial.println("Response: " + response);  // The response body
   } else {
+    // If the request fails, print the error code
     Serial.println("Error sending event to Pusher: " + String(httpResponseCode));
+    Serial.println("Response: " + http.errorToString(httpResponseCode));
   }
   
   http.end();  // Free resources
