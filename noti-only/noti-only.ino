@@ -7,12 +7,12 @@ const char* password = "Alamak323";
 
 // Pusher API credentials
 const String app_id = "1897337";
-const String key = "3ef10ab69edd1c712eeb";
-const String secret = "d21e52ac4ffabdc37745";
+const String key = "3ef10ab69edd1c712eeb";  // Use key here for Authorization
+const String secret = "d21e52ac4ffabdc37745";  // Secret is typically used for authentication
 const String cluster = "ap1";
 
 // Pusher API URL
-const String url = "http://api.pusherapp.com/apps/" + app_id + "/events";
+const String url = "https://api.pusherapp.com/apps/" + app_id + "/events";
 
 // Set the channel and event to trigger
 const String channel = "doorbell";
@@ -25,7 +25,7 @@ void sendPusherNotification() {
   String data = "{\"name\":\"" + event + "\",\"channel\":\"" + channel + "\",\"data\":\"{\\\"message\\\":\\\"Doorbell pressed!\\\"}\"}";
 
   // Set the Authorization header
-  String authHeader = "Bearer " + secret;
+  String authHeader = "Bearer " + key;  // Use the key for authorization header
 
   // Initialize HTTP request
   http.begin(url);
@@ -38,6 +38,10 @@ void sendPusherNotification() {
   // Check for successful response
   if (httpResponseCode > 0) {
     Serial.println("Notification sent successfully");
+
+    // Get and print the response body
+    String response = http.getString();
+    Serial.println("Response: " + response);
   } else {
     Serial.print("Error sending notification. HTTP Response code: ");
     Serial.println(httpResponseCode);
