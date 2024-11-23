@@ -46,7 +46,7 @@ void setup() {
   out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
 
   // Set up HTTP POST endpoint for receiving audio
-  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+  server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
             [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
               Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
 

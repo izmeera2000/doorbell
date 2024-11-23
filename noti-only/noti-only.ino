@@ -7,7 +7,7 @@ const char* password = "Alamak323";
 
 
 // Pusher Channels API URL
-const String PUSHER_API_URL = "https://api.pusherapp.com/apps/YOUR_APP_ID/events";
+const String PUSHER_API_URL = "https://api.pusherapp.com/apps/1897337/events";
 const String API_KEY = "3ef10ab69edd1c712eeb";  // Your Pusher API key
 const String CLUSTER = "ap1";  // Your Pusher cluster
 
