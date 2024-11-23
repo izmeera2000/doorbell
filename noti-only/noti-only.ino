@@ -1,70 +1,113 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <ArduinoJson.h>
 
-// Replace with your WiFi credentials
+// Wi-Fi Credentials
 const char* ssid = "iPhone";
 const char* password = "Alamak323";
 
-// Pusher API URL and App ID
-const String PUSHER_API_URL = "https://api.pusherapp.com/apps/1897337/events";  // Replace with your App ID
-const String API_KEY = "d21e52ac4ffabdc37745";  // Replace with your Pusher Master Key
-
-// Define channel and event name
-const String CHANNEL_NAME = "doorbell";
-const String EVENT_NAME = "ring";
-
+// Pusher configuration
+const char *app_id = "1897337";
+const char *key = "3ef10ab69edd1c712eeb";
+const char *secret = "d21e52ac4ffabdc37745";
+const char *cluster = "ap1";
+const char *channel = "doorbell";
+const char *event = "bell";
 
 void setup() {
   Serial.begin(115200);
 
-  // Connect to WiFi
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
-  
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Connecting to WiFi...");
   }
-  
   Serial.println("Connected to WiFi");
-
-  // Send event to Pusher
-  sendPusherEvent();
+  
+  // Send Pusher notification
+  if (sendPusherNotification()) {
+    Serial.println("Notification sent successfully");
+  } else {
+    Serial.println("Failed to send notification");
+  }
 }
 
 void loop() {
-  // Nothing to do here
+  // Add your main loop logic if needed
 }
 
-void sendPusherEvent() {
+bool sendPusherNotification() {
   HTTPClient http;
-  
-  // Set up the HTTP request
-  http.begin(PUSHER_API_URL);  // The full Pusher API URL
-  http.addHeader("Content-Type", "application/json");
-  http.addHeader("Authorization", "Bearer " + API_KEY);  // Use Master Key for authorization
-  
-  // Build the JSON payload
-  String payload = String("{")
-    + "\"name\": \"" + EVENT_NAME + "\","
-    + "\"channel\": \"" + CHANNEL_NAME + "\","
-    + "\"data\": {\"message\": \"hello world\"}"
-    + "}";
 
-  // Send the HTTP POST request
+  // Construct the Pusher REST API URL
+  String url = "http://" + String(cluster) + "-api.pusher.com/apps/" + String(app_id) + "/events";
+
+  // Generate the data payload for the notification
+  String payload = "{\"name\":\"" + String(event) + "\",\"channels\":[\"" + String(channel) + "\"],\"data\":\"{\\\"message\\\":\\\"Doorbell pressed!\\\"}\"}";
+
+  // Calculate the authentication signature
+  String body_md5 = md5(payload);
+  String timestamp = String(millis() / 1000);
+  String string_to_sign = "POST\n/apps/" + String(app_id) + "/events\nauth_key=" + String(key) +
+                          "&auth_timestamp=" + timestamp + "&auth_version=1.0&body_md5=" + body_md5;
+  String auth_signature = hmac_sha256(secret, string_to_sign);
+
+  // Construct the full query parameters
+  String params = "auth_key=" + String(key) + "&auth_timestamp=" + timestamp + "&auth_version=1.0&body_md5=" + body_md5 + "&auth_signature=" + auth_signature;
+
+  // Open HTTP connection
+  http.begin(url + "?" + params);
+  http.addHeader("Content-Type", "application/json");
+
+  // Send the request
   int httpResponseCode = http.POST(payload);
-  
-  // Check if request was successful
-  if (httpResponseCode > 0) {
-    // Read the response payload (string format)
-    String response = http.getString();
-    Serial.println("Event sent to Pusher successfully!");
-    Serial.println("HTTP Response code: " + String(httpResponseCode));
-    Serial.println("Response: " + response);  // The response body
+
+  // Check the response
+  if (httpResponseCode == 200) {
+    Serial.println("Notification sent successfully");
+    http.end();
+    return true;
   } else {
-    // If the request fails, print the error code
-    Serial.println("Error sending event to Pusher: " + String(httpResponseCode));
-    Serial.println("Response: " + http.errorToString(httpResponseCode));
+    Serial.printf("HTTP Response Code: %d\n", httpResponseCode);
+    Serial.println(http.getString());
+    http.end();
+    return false;
   }
-  
-  http.end();  // Free resources
+}
+
+// Helper function to calculate MD5 hash
+String md5(String payload) {
+  char md5_hash[33];
+  MD5Builder md5;
+  md5.begin();
+  md5.add(payload);
+  md5.calculate();
+  md5.toString(md5_hash, sizeof(md5_hash));
+  return String(md5_hash);
+}
+
+// Helper function to calculate HMAC-SHA256 signature
+String hmac_sha256(const String &key, const String &message) {
+  uint8_t key_buffer[32];
+  size_t key_length = key.length();
+  key.getBytes(key_buffer, key_length);
+
+  uint8_t hash_output[32];
+  mbedtls_md_context_t ctx;
+  const mbedtls_md_info_t *info = mbedtls_md_info_from_type(MBEDTLS_MD_SHA256);
+  mbedtls_md_init(&ctx);
+  mbedtls_md_setup(&ctx, info, 1);
+  mbedtls_md_hmac_starts(&ctx, key_buffer, key_length);
+  mbedtls_md_hmac_update(&ctx, (uint8_t *)message.c_str(), message.length());
+  mbedtls_md_hmac_finish(&ctx, hash_output);
+  mbedtls_md_free(&ctx);
+
+  String result;
+  for (int i = 0; i < 32; i++) {
+    char hex[3];
+    sprintf(hex, "%02x", hash_output[i]);
+    result += hex;
+  }
+  return result;
 }
