@@ -1,8 +1,8 @@
 #include <WiFi.h>
 #include <HTTPClient.h>
 #include <esp_system.h>
-#include <mbedtls/md5.h> // For MD5 hash
-#include <mbedtls/md.h>  // For HMAC-SHA256
+#include <mbedtls/md5.h>  // For MD5 hash
+#include <mbedtls/md.h>   // For HMAC-SHA256
 
 // Wi-Fi credentials
 const char* ssid = "iPhone";
@@ -21,7 +21,7 @@ const String url = "http://api-" + cluster + ".pusher.com/apps/" + app_id + "/ev
 const String channel = "doorbell";
 const String event = "bell";
 
-// Function to generate MD5 hash of the body (corrected)
+// Function to generate MD5 hash of the body
 String generateBodyMD5(String body) {
   unsigned char hash[16];
   mbedtls_md5_context ctx;
@@ -34,10 +34,15 @@ String generateBodyMD5(String body) {
   // Convert MD5 hash to hex string and ensure it's lowercase
   String body_md5 = "";
   for (int i = 0; i < 16; i++) {
+    // Convert to hex and ensure it's lowercase
+    if (hash[i] < 16) {
+      body_md5 += "0";
+    }
     body_md5 += String(hash[i], HEX);  // Convert to hex
   }
-  
-  return body_md5; // Return MD5 hash in hexadecimal form (upper case by default)
+
+  body_md5.toLowerCase(); // Ensure the MD5 hash is in lowercase
+  return body_md5; // Return MD5 hash in lowercase hexadecimal form
 }
 
 // Function to create the authentication signature
@@ -80,7 +85,7 @@ void sendPusherNotification() {
 
   // Generate MD5 hash of the body
   String body_md5 = generateBodyMD5(data);
-  
+
   // Convert body_md5 to lowercase
   body_md5.toLowerCase();
 
