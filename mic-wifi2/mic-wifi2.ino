@@ -61,7 +61,7 @@ void setup() {
   WiFi.setSleep(false);
 
   // I2S configuration
-     i2s_config = {
+  i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
@@ -87,12 +87,15 @@ void setup() {
         return sizeof(wav_header);
       }
       // Read audio samples from I2S
-      size_t bytesRead;
-      i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
+      size_t bytesRead = 0;
+      i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, 10 / portTICK_PERIOD_MS);  // Use a short timeout
+
       return bytesRead;
     });
 
     // Set headers to allow for streaming
+
+
     response->addHeader("Content-Type", "audio/wav");
     response->addHeader("Transfer-Encoding", "chunked");
     response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
