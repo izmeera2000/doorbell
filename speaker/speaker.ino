@@ -2,6 +2,7 @@
 #include <ESPAsyncWebServer.h>
 #include <AudioGeneratorWAV.h>
 #include <AudioOutputI2S.h>
+#include <AudioFileSourceBuffer.h>
 
 // WiFi credentials
 const char* ssid = "iPhone";
@@ -32,13 +33,13 @@ void setup() {
 
   // Configure I2S output
   out = new AudioOutputI2S();
-  out->SetOutputModeMono(true);
-  out->SetGain(0.1);
-  out->SetPinout(0, 0, 25);
+  out->SetOutputModeMono(true); // Mono output
+  out->SetGain(0.2);            // Adjust volume (0.0 to 1.0)
+  out->SetPinout(0, 0, 25);     // DAC on GPIO25 (BCK and WS are unused)
 
   // Set up HTTP POST endpoint
-  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
-            [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest* request) {}, NULL,
+            [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
               Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
 
               // Store received data in buffer
@@ -61,15 +62,18 @@ void setup() {
                 }
 
                 wav = new AudioGeneratorWAV();
-                if (wav->begin(new AudioFileSourceBuffer(audioBuffer, audioBufferIndex), out)) {
+                auto* audioSource = new AudioFileSourceBuffer(audioBuffer, audioBufferIndex);
+
+                if (wav->begin(audioSource, out)) {
                   Serial.println("Audio playback started");
                   request->send(200, "text/plain", "Audio uploaded and playing");
                 } else {
                   Serial.println("Failed to start playback");
                   request->send(500, "text/plain", "Failed to start playback");
+                  delete audioSource;
                 }
 
-                // Reset buffer index
+                // Reset buffer index for next upload
                 audioBufferIndex = 0;
               }
             });
