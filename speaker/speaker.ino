@@ -31,64 +31,68 @@ void setup() {
   Serial.println("WiFi connected!");
 
   // Initialize LittleFS
-  if (!LittleFS.begin()) {
+  if (!LittleFS.begin(true)) {  // The `true` parameter forces formatting if necessary
     Serial.println("LittleFS mount failed!");
     return;
   }
+  Serial.println("LittleFS mounted successfully!");
 
   // Configure I2S output for audio playback
   out = new AudioOutputI2S();
-  out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.2);            // Adjust volume (0.0 to 1.0)
-  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
+  out->SetOutputModeMono(true);  // Mono output
+  out->SetGain(0.2);             // Adjust volume (0.0 to 1.0)
+  out->SetPinout(0, 0, 25);      // Use GPIO25 for DAC (BCK and WS set to 0)
 
   // Set up HTTP POST endpoint for receiving audio
-  server.on("/audio", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
-            [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-              if (index == 0) {
-                Serial.println("Receiving audio data...");
-                File file = LittleFS.open("/audio.wav", FILE_WRITE);
-                if (!file) {
-                  Serial.println("Failed to open file for writing");
-                  request->send(500, "text/plain", "Failed to open file for writing");
-                  return;
-                }
-                file.close();
-              }
+  server.on(
+    "/audio", HTTP_POST, [](AsyncWebServerRequest* request) {}, NULL,
+    [](AsyncWebServerRequest* request, uint8_t* data, size_t len, size_t index, size_t total) {
+      Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
 
-              // Append received data to the file
-              File file = LittleFS.open("/audio.wav", FILE_APPEND);
-              if (file) {
-                file.write(data, len);
-                file.close();
-              }
+      if (index == 0) {
+        Serial.println("Receiving audio data...");
+        File file = LittleFS.open("/audio.wav", FILE_WRITE);
+        if (!file) {
+          Serial.println("Failed to open file for writing");
+          request->send(500, "text/plain", "Failed to open file for writing");
+          return;
+        }
+        file.close();
+      }
 
-              if (index + len == total) {
-                Serial.println("Audio data received, starting playback...");
+      // Append received data to the file
+      File file = LittleFS.open("/audio.wav", FILE_APPEND);
+      if (file) {
+        file.write(data, len);
+        file.close();
+      }
 
-                // Stop previous playback if running
-                if (wav && wav->isRunning()) {
-                  wav->stop();
-                  delete wav;
-                  wav = nullptr;
-                }
-                if (fileSource) {
-                  delete fileSource;
-                  fileSource = nullptr;
-                }
+      if (index + len == total) {
+        Serial.println("Audio data received, starting playback...");
 
-                // Initialize WAV playback
-                fileSource = new AudioFileSourceLittleFS("/audio.wav");
-                wav = new AudioGeneratorWAV();
-                if (wav->begin(fileSource, out)) {
-                  Serial.println("Audio playback started");
-                  request->send(200, "text/plain", "Audio received and playing");
-                } else {
-                  Serial.println("Failed to start WAV decoder!");
-                  request->send(500, "text/plain", "Failed to start WAV decoder");
-                }
-              }
-            });
+        // Stop previous playback if running
+        if (wav && wav->isRunning()) {
+          wav->stop();
+          delete wav;
+          wav = nullptr;
+        }
+        if (fileSource) {
+          delete fileSource;
+          fileSource = nullptr;
+        }
+
+        // Initialize WAV playback
+        fileSource = new AudioFileSourceLittleFS("/audio.wav");
+        wav = new AudioGeneratorWAV();
+        if (wav->begin(fileSource, out)) {
+          Serial.println("Audio playback started");
+          request->send(200, "text/plain", "Audio received and playing");
+        } else {
+          Serial.println("Failed to start WAV decoder!");
+          request->send(500, "text/plain", "Failed to start WAV decoder");
+        }
+      }
+    });
 
   // Start the server
   server.begin();
