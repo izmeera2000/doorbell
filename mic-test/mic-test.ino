@@ -10,7 +10,7 @@ const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 AsyncWebServer server(82);
 
 #define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 128  // Reduced buffer size for stability
+#define SAMPLE_BUFFER_SIZE 1024  // Reduced buffer size for stability
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -53,20 +53,20 @@ void setup() {
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
     .intr_alloc_flags = 0,
-    .dma_buf_count = 10,
+    .dma_buf_count = 2,
     .dma_buf_len = SAMPLE_BUFFER_SIZE,
      .use_apll = true
   };
 
   // Initialize I2S driver
-  esp_err_t err = i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  esp_err_t err = i2s_driver_install(I2S_NUM_1, &i2s_config, 0, NULL);
   if (err != ESP_OK) {
     Serial.println("I2S driver installation failed");
     return;
   }
 
   // Initialize I2S pins
-  err = i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
+  err = i2s_set_pin(I2S_NUM_1, &i2s_pin_config);
   if (err != ESP_OK) {
     Serial.println("I2S pin setup failed");
     return;
