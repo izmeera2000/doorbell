@@ -105,8 +105,7 @@ void setup() {
 }
 
 void loop() {
-  esp_task_wdt_reset();  // Feed the watchdog
-  delay(10);  // Small delay to prevent watchdog reset
+  delay(10000);  // Small delay to prevent watchdog reset
 
   // Monitor memory usage
   // Serial.print("Free heap: ");
