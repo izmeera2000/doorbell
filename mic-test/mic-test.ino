@@ -1,87 +1,43 @@
-#include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <LittleFS.h>
-#include <AudioGeneratorWAV.h>
-#include <AudioFileSourceBuffer.h>
+#include <driver/i2s.h>
 
-// Wi-Fi Credentials
-const char *ssid = "iPhone";
-const char *password = "Alamak323";
-
-// DAC Pin for Speaker
-#define DAC_PIN 25
-
-// Web Server
-AsyncWebServer server(82);
-
-// WAV Audio Processing
-AudioGeneratorWAV *wav = nullptr;
-AudioFileSourceBuffer *fileSource = nullptr;
-
-// Buffer for storing the incoming audio stream
-#define AUDIO_BUFFER_SIZE 8192
-uint8_t audioBuffer[AUDIO_BUFFER_SIZE];
-size_t bufferIndex = 0;
+#define SAMPLE_RATE 16000
+#define I2S_MIC_SERIAL_CLOCK 26
+#define I2S_MIC_LEFT_RIGHT_CLOCK 22
+#define I2S_MIC_SERIAL_DATA 21
 
 void setup() {
   Serial.begin(115200);
 
-  // Connect to Wi-Fi
-  WiFi.begin(ssid, password);
-  while (WiFi.status() != WL_CONNECTED) {
-    Serial.println("Connecting to WiFi...");
-    delay(1000);
-  }
-  Serial.println("Connected to WiFi");
-  Serial.println(WiFi.localIP());
+  i2s_config_t i2s_config = {
+    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
+    .sample_rate = SAMPLE_RATE,
+    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
+    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
+    .communication_format = I2S_COMM_FORMAT_I2S,
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .dma_buf_count = 8,
+    .dma_buf_len = 256
+  };
 
-  // Initialize LittleFS
-  if (!LittleFS.begin()) {
-    Serial.println("Failed to initialize LittleFS");
-    return;
-  }
+  i2s_pin_config_t pin_config = {
+    .bck_io_num = I2S_MIC_SERIAL_CLOCK,
+    .ws_io_num = I2S_MIC_LEFT_RIGHT_CLOCK,
+    .data_out_num = I2S_PIN_NO_CHANGE,
+    .data_in_num = I2S_MIC_SERIAL_DATA
+  };
 
-  // Endpoint for receiving and playing WAV audio
-  server.on("/stream", HTTP_POST, [](AsyncWebServerRequest *request) {
-    request->send(200, "text/plain", "Streaming audio...");
-  }, nullptr, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-    // Append incoming data to the buffer
-    if ((bufferIndex + len) <= AUDIO_BUFFER_SIZE) {
-      memcpy(audioBuffer + bufferIndex, data, len);
-      bufferIndex += len;
-    }
+  i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  i2s_set_pin(I2S_NUM_0, &pin_config);
 
-    // If all data received, start playback
-    if ((index + len) == total) {
-      Serial.println("Received full audio stream");
-      fileSource = new AudioFileSourceBuffer(audioBuffer, bufferIndex);
-      wav = new AudioGeneratorWAV();
-      if (wav->begin(fileSource, nullptr)) {
-        Serial.println("Playing audio...");
-        while (wav->isRunning()) {
-          if (wav->loop()) {
-            int16_t sample = wav->read();  // Read decoded WAV sample
-            int dacValue = (sample + 32768) >> 8;  // Convert 16-bit signed to 8-bit unsigned
-            dacWrite(DAC_PIN, dacValue);  // Output to DAC
-          } else {
-            wav->stop();
-          }
-        }
-      } else {
-        Serial.println("Failed to play audio");
-      }
-
-      // Clean up
-      delete wav;
-      delete fileSource;
-      wav = nullptr;
-      fileSource = nullptr;
-      bufferIndex = 0;
-    }
-  });
-
-  server.begin();
+  Serial.println("I2S initialized successfully");
 }
 
-vo
+void loop() {
+  uint8_t buffer[512];
+  size_t bytes_read;
+  if (i2s_read(I2S_NUM_0, buffer, sizeof(buffer), &bytes_read, portMAX_DELAY) == ESP_OK) {
+    Serial.printf("Read %d bytes from I2S\n", bytes_read);
+  } else {
+    Serial.println("I2S read failed");
+  }
+}
