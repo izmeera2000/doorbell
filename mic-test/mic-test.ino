@@ -9,7 +9,7 @@ const char *password = "Alamak323";    // Replace with your Wi-Fi Password
 
 // Audio settings
 #define SAMPLE_RATE 16000
-#define SAMPLE_BUFFER_SIZE 2048  // Larger buffer size (adjust for PSRAM)
+#define SAMPLE_BUFFER_SIZE 1024  // Larger buffer size (adjust for PSRAM)
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
