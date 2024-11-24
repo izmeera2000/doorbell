@@ -3,8 +3,8 @@
 #include <driver/i2s.h>
 
 // Wi-Fi credentials
-const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
-const char *password = "Alamak323";   // Replace with your Wi-Fi Password
+const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
+const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 
 // Define I2S connections
 #define I2S_WS 25
@@ -82,7 +82,10 @@ void setup() {
       if (result != ESP_OK || bytesRead == 0) {
         Serial.println("I2S read error or no data.");
         return 0;  // Return 0 bytes if there's an issue
+      } else {
+        Serial.printf("Bytes Read: %d\n", bytesRead);
       }
+
 
       return bytesRead;  // Return the number of bytes read
     });
