@@ -1,16 +1,10 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
-#include <AudioGeneratorWAV.h>
-#include <AudioFileSourceLittleFS.h>
 #include <LittleFS.h>
 
 // WiFi credentials
 const char* ssid = "iPhone";
 const char* password = "Alamak323";
-
-// Audio objects
-AudioGeneratorWAV* wav = nullptr;
-AudioFileSourceLittleFS* fileSource = nullptr;
 
 // Async server
 AsyncWebServer server(81);
@@ -64,27 +58,7 @@ void setup() {
           audioFile.close();
         }
 
-        // Stop previous playback if running
-        if (wav && wav->isRunning()) {
-          wav->stop();
-          delete wav;
-          wav = nullptr;
-        }
-        if (fileSource) {
-          delete fileSource;
-          fileSource = nullptr;
-        }
-
-        // Initialize WAV playback
-        fileSource = new AudioFileSourceLittleFS("/audio.wav");
-        wav = new AudioGeneratorWAV();
-        if (wav->begin(fileSource)) {
-          Serial.println("Audio playback started");
-          request->send(200, "text/plain", "Audio received and playing");
-        } else {
-          Serial.println("Failed to start WAV decoder!");
-          request->send(500, "text/plain", "Failed to start WAV decoder");
-        }
+        request->send(200, "text/plain", "Audio received and ready to play");
       }
     });
 
@@ -93,19 +67,29 @@ void setup() {
 }
 
 void loop() {
-  // Process the audio stream (if active)
-  if (wav != nullptr && wav->isRunning()) {
-    int sample = wav->read();
-    if (sample >= 0) {
-      // Output the audio sample to DAC1 (GPIO25)
-      dacWrite(25, sample / 256);  // Map 16-bit to 8-bit for DAC
-    }
+  // Open the WAV file
+  File audioFile = LittleFS.open("/audio.wav", "r");
+  if (!audioFile) {
+    Serial.println("Failed to open audio file!");
+    return;
+  }
 
-    if (!wav->loop()) {
-      wav->stop();
-      delete wav;
-      wav = nullptr;
-      Serial.println("Audio playback finished.");
+  // Skip WAV header (44 bytes for standard WAV files)
+  audioFile.seek(44);
+
+  // Read and output audio data to DAC
+  while (audioFile.available()) {
+    int sample = audioFile.read();  // Read 1 byte (8-bit sample)
+    
+    if (sample >= 0) {
+      // Map the sample to DAC output range (0 to 255)
+      uint8_t dacOutput = (sample + 128);  // Adjust to fit 0-255 range for DAC
+      dacWrite(25, dacOutput);  // Send to DAC1 (GPIO 25)
     }
   }
+
+  // Close the file after playback
+  audioFile.close();
+  Serial.println("Audio playback finished.");
+  delay(1000);  // Optional delay before restarting playback
 }
