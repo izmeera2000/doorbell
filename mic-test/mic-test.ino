@@ -8,8 +8,8 @@ const char *ssid = "iPhone";           // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";    // Replace with your Wi-Fi Password
 
 // Audio settings
-#define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 256  // Larger buffer size (adjust for PSRAM)
+#define SAMPLE_RATE 16000
+#define SAMPLE_BUFFER_SIZE 2048  // Larger buffer size (adjust for PSRAM)
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -124,6 +124,6 @@ void setup() {
 }
 
 void loop() {
-  yield();  // Feed the watchdog timer
+  yield();  // Feed the watchdog timer 
   delay(100);  // Small delay to prevent watchdog reset
 }
