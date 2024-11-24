@@ -2,6 +2,7 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
+#include <LittleFS.h>
 
 // Wi-Fi Credentials
 const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
