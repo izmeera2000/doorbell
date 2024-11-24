@@ -1,7 +1,6 @@
 #include <WiFi.h>
 #include <ESPAsyncWebServer.h>
 #include <AudioGeneratorWAV.h>
-#include <AudioOutputI2S.h>
 #include <AudioFileSourceLittleFS.h>
 #include <LittleFS.h>
 
@@ -11,7 +10,6 @@ const char* password = "Alamak323";
 
 // Audio objects
 AudioGeneratorWAV* wav = nullptr;
-AudioOutputI2S* out = nullptr;
 AudioFileSourceLittleFS* fileSource = nullptr;
 
 // Async server
@@ -38,12 +36,6 @@ void setup() {
     Serial.println("LittleFS mount failed!");
     return;
   }
-
-  // Configure I2S output for audio playback
-  out = new AudioOutputI2S();
-  out->SetOutputModeMono(true);  // Mono output
-  out->SetGain(0.1);             // Adjust volume (0.0 to 1.0)
-  out->SetPinout(0, 0, 25);      // Use GPIO25 for DAC (BCK and WS set to 0)
 
   // Set up HTTP POST endpoint for receiving audio
   server.on(
@@ -86,7 +78,7 @@ void setup() {
         // Initialize WAV playback
         fileSource = new AudioFileSourceLittleFS("/audio.wav");
         wav = new AudioGeneratorWAV();
-        if (wav->begin(fileSource, out)) {
+        if (wav->begin(fileSource)) {
           Serial.println("Audio playback started");
           request->send(200, "text/plain", "Audio received and playing");
         } else {
@@ -103,6 +95,12 @@ void setup() {
 void loop() {
   // Process the audio stream (if active)
   if (wav != nullptr && wav->isRunning()) {
+    int sample = wav->read();
+    if (sample >= 0) {
+      // Output the audio sample to DAC1 (GPIO25)
+      dacWrite(25, sample / 256);  // Map 16-bit to 8-bit for DAC
+    }
+
     if (!wav->loop()) {
       wav->stop();
       delete wav;

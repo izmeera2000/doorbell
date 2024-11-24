@@ -8,8 +8,8 @@ const char *ssid = "iPhone";           // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";    // Replace with your Wi-Fi Password
 
 // Audio settings
-#define SAMPLE_RATE 16000
-#define SAMPLE_BUFFER_SIZE 1024  // Larger buffer size (adjust for PSRAM)
+#define SAMPLE_RATE 8000
+#define SAMPLE_BUFFER_SIZE 512  // Larger buffer size (adjust for PSRAM)
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -92,6 +92,8 @@ void setup() {
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
     // Send WAV header at the beginning
+        Serial.println("got someone");
+
     AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
       if (index == 0) {
         // Send WAV header once
