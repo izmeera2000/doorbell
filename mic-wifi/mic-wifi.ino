@@ -113,8 +113,8 @@ void loop() {
   delay(100);  // Small delay to prevent watchdog reset
 
   // Monitor memory usage
-  Serial.print("Free heap: ");
-  Serial.println(ESP.getFreeHeap());
+  // Serial.print("Free heap: ");
+  // Serial.println(ESP.getFreeHeap());
 
   // Additional debug if needed
   // Uncomment to view more details about Wi-Fi and server status
