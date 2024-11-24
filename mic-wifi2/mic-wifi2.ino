@@ -66,12 +66,12 @@ void setup() {
     .data_in_num = I2S_MIC_SERIAL_DATA
   };
 
-  esp_err_t err = i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
+  esp_err_t err = i2s_driver_install(I2S_NUM_0, &mic_config, 0, NULL);
   if (err != ESP_OK) {
     Serial.println("I2S driver installation failed");
     return;
   }
-  err = i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
+  err = i2s_set_pin(I2S_NUM_0, &mic_pins);
   if (err != ESP_OK) {
     Serial.println("I2S pin setup failed");
     return;
