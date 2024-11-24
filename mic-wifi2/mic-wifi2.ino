@@ -12,7 +12,7 @@ const char *ssid = "iPhone";
 const char *password = "Alamak323";
 
 // Async server
-AsyncWebServer server(80);
+AsyncWebServer server(82);
 
 // Microphone I2S configuration
 #define SAMPLE_RATE 16000
