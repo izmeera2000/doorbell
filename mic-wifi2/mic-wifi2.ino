@@ -13,7 +13,7 @@ AsyncWebServer server(82);
 
 // I2S Microphone Configuration
 #define SAMPLE_RATE 16000
-#define SAMPLE_BUFFER_SIZE 512
+#define SAMPLE_BUFFER_SIZE 128
 #define I2S_MIC_SERIAL_CLOCK 26
 #define I2S_MIC_LEFT_RIGHT_CLOCK 22
 #define I2S_MIC_SERIAL_DATA 21
@@ -85,6 +85,8 @@ void setup() {
 
   // Endpoint for playing uploaded audio on DAC
   server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+                  Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
+
     if (index == 0) {
       Serial.println("Receiving audio...");
       File file = LittleFS.open("/audio.wav", FILE_WRITE);
