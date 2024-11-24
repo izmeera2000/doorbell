@@ -11,7 +11,7 @@ const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 AsyncWebServer server(82);
 
 #define SAMPLE_RATE 16000
-#define SAMPLE_BUFFER_SIZE 128  // Reduced buffer size for stability
+#define SAMPLE_BUFFER_SIZE 256  // Reduced buffer size for stability
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -84,10 +84,14 @@ void setup() {
       // Read audio samples from I2S
       size_t bytesRead;
       esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
-      if (result != ESP_OK || bytesRead == 0) {
-        Serial.println("I2S read error or no data.");
-        return 0;  // Return 0 bytes if there's an issue
+      if (result != ESP_OK) {
+        Serial.printf("I2S read error: %d\n", result);
+        return 0;
+      } else if (bytesRead == 0) {
+        Serial.println("No data read from I2S");
+        return 0;
       }
+
 
       return bytesRead;
     });
@@ -101,13 +105,13 @@ void setup() {
     request->send(response);
   });
 
- // Start the server
+  // Start the server
   server.begin();
 }
 
 void loop() {
-  yield();     // Feed the watchdog timer
-  delay(100);  // Small delay to prevent watchdog reset
+  esp_task_wdt_reset();  // Feed the watchdog
+  delay(10);             // Prevent busy loops
 
   // Monitor memory usage
   // Serial.print("Free heap: ");
