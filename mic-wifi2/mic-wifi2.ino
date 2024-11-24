@@ -2,11 +2,10 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
-#include <LittleFS.h>
 
 // Wi-Fi Credentials
-const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
-const char *password = "Alamak323";  // Replace with your Wi-Fi Password
+const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
+const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 
 AsyncWebServer server(82);
 
@@ -84,14 +83,10 @@ void setup() {
       // Read audio samples from I2S
       size_t bytesRead;
       esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
-      if (result != ESP_OK) {
-        Serial.printf("I2S read error: %d\n", result);
-        return 0;
-      } else if (bytesRead == 0) {
-        Serial.println("No data read from I2S");
-        return 0;
+      if (result != ESP_OK || bytesRead == 0) {
+        Serial.println("I2S read error or no data.");
+        return 0;  // Return 0 bytes if there's an issue
       }
-
 
       return bytesRead;
     });
@@ -111,7 +106,7 @@ void setup() {
 
 void loop() {
   esp_task_wdt_reset();  // Feed the watchdog
-  delay(10);             // Prevent busy loops
+  delay(10);  // Small delay to prevent watchdog reset
 
   // Monitor memory usage
   // Serial.print("Free heap: ");
