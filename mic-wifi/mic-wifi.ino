@@ -13,9 +13,9 @@ AsyncWebServer server(82);
 #define SAMPLE_BUFFER_SIZE 128  // Reduced buffer size for stability
 
 // I2S microphone pin configuration
-#define I2S_MIC_SERIAL_CLOCK 32
-#define I2S_MIC_LEFT_RIGHT_CLOCK 25
-#define I2S_MIC_SERIAL_DATA 33
+#define I2S_MIC_SERIAL_CLOCK 26
+#define I2S_MIC_LEFT_RIGHT_CLOCK 22
+#define I2S_MIC_SERIAL_DATA 21
 
 i2s_pin_config_t i2s_pin_config = {
   .bck_io_num = I2S_MIC_SERIAL_CLOCK,
