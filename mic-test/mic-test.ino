@@ -124,6 +124,6 @@ void setup() {
 }
 
 void loop() {
-  // yield();  // Feed the watchdog timer
+  yield();  // Feed the watchdog timer
   delay(100);  // Small delay to prevent watchdog reset
 }
