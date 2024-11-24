@@ -40,11 +40,7 @@ void setup() {
   int retries = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
-    Serial.println("Connecting to WiFi...");
-    if (retries++ >= 20) {
-      Serial.println("Failed to connect to WiFi.");
-      return;  // Exit if not connected after 20 retries
-    }
+    Serial.println("Waiting for WiFi connection...");
   }
   Serial.println("Connected to WiFi");
   Serial.println(WiFi.localIP());
