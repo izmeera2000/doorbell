@@ -100,42 +100,7 @@ void setup() {
     request->send(response);
   });
 
-
-  server.on(
-    "/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL, [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-      Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
-
-      // if (index == 0) {
-      //   Serial.println("Receiving audio...");
-      //   File file = LittleFS.open("/audio.wav", FILE_WRITE);
-      //   if (!file) {
-      //     request->send(500, "Failed to open file for writing");
-      //     return;
-      //   }
-      //   file.write(data, len);
-      //   file.close();
-      // }
-
-      // if (index + len == total) {
-      //   Serial.println("Playing audio through DAC");
-      //   File audioFile = LittleFS.open("/audio.wav", "r");
-      //   if (!audioFile) {
-      //     request->send(500, "Failed to open audio file");
-      //     return;
-      //   }
-
-      //   while (audioFile.available()) {
-      //     uint8_t sample = audioFile.read();  // Read 8-bit audio sample
-      //     dacWrite(DAC_PIN, sample);          // Write to DAC
-      //     delayMicroseconds(62);              // Adjust timing for sample rate
-      //   }
-
-      //   audioFile.close();
-      //   request->send(200, "text/plain", "Audio played");
-      // }
-    });
-
-  // Start the server
+ // Start the server
   server.begin();
 }
 
