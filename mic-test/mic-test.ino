@@ -52,9 +52,10 @@ void setup() {
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
-    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .intr_alloc_flags = 0,
     .dma_buf_count = 10,
-    .dma_buf_len = SAMPLE_BUFFER_SIZE
+    .dma_buf_len = SAMPLE_BUFFER_SIZE,
+     .use_apll = true
   };
 
   // Initialize I2S driver
