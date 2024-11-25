@@ -2,15 +2,19 @@
 #include <AsyncTCP.h>
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
+#include <AudioGeneratorWAV.h>
+#include <AudioOutputI2S.h>
+#include <AudioFileSourceLittleFS.h>
+#include <LittleFS.h>
 
 // Wi-Fi Credentials
 const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
 const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 
-AsyncWebServer server(82);
-
-#define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 128  // Reduced buffer size for stability
+// Audio objects
+AudioGeneratorWAV* wav = nullptr;
+AudioOutputI2S* out = nullptr;
+AudioFileSourceLittleFS* fileSource = nullptr;
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -24,7 +28,12 @@ i2s_pin_config_t i2s_pin_config = {
   .data_in_num = I2S_MIC_SERIAL_DATA
 };
 
-// Modified WAV header for infinite stream
+#define SAMPLE_RATE 8000
+#define SAMPLE_BUFFER_SIZE 128  // Reduced buffer size for stability
+
+AsyncWebServer server(81);  // Using port 81 for receiving audio data
+
+// WAV header for streaming
 uint8_t wav_header[44] = {
   'R', 'I', 'F', 'F', 0xFF, 0xFF, 0xFF, 0x7F, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
   16, 0, 0, 0, 1, 0, 1, 0, (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
@@ -32,20 +41,33 @@ uint8_t wav_header[44] = {
   2, 0, 16, 0, 'd', 'a', 't', 'a', 0xFF, 0xFF, 0xFF, 0x7F
 };
 
+File audioFile;
+
 void setup() {
+  // Start serial communication
   Serial.begin(115200);
 
-  // Initialize Wi-Fi connection
+  // Connect to Wi-Fi
   WiFi.begin(ssid, password);
-  int retries = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Waiting for WiFi connection...");
   }
-  Serial.println("Connected to WiFi");
-  Serial.println(WiFi.localIP());
+  Serial.println("WiFi connected!");
 
-  // I2S config
+  // Initialize LittleFS
+  if (!LittleFS.begin()) {
+    Serial.println("LittleFS mount failed!");
+    return;
+  }
+
+  // Configure I2S output for audio playback
+  out = new AudioOutputI2S();
+  out->SetOutputModeMono(true); // Mono output
+  out->SetGain(0.1);            // Adjust volume (0.0 to 1.0)
+  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
+
+  // I2S config for microphone
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
     .sample_rate = SAMPLE_RATE,
@@ -56,7 +78,7 @@ void setup() {
     .dma_buf_count = 10,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
   };
-
+  
   // Initialize I2S driver
   esp_err_t err = i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
   if (err != ESP_OK) {
@@ -71,7 +93,7 @@ void setup() {
     return;
   }
 
-  // Audio streaming endpoint
+  // Audio streaming endpoint for live I2S data
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
     // Send WAV header at the beginning
     AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
@@ -100,18 +122,71 @@ void setup() {
     request->send(response);
   });
 
+  // HTTP POST endpoint for receiving audio data
+  server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
+            [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
+              Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
+
+              if (index == 0) {
+                Serial.println("Receiving audio data...");
+                audioFile = LittleFS.open("/audio.wav", FILE_WRITE);
+                if (!audioFile) {
+                  Serial.println("Failed to open file for writing");
+                  request->send(500, "text/plain", "Failed to open file for writing");
+                  return;
+                }
+              }
+
+              // Write received data to the file
+              if (audioFile) {
+                audioFile.write(data, len);
+              }
+
+              if (index + len == total) {
+                Serial.println("Audio data received, finalizing file...");
+                if (audioFile) {
+                  audioFile.close();
+                }
+
+                // Stop previous playback if running
+                if (wav && wav->isRunning()) {
+                  wav->stop();
+                  delete wav;
+                  wav = nullptr;
+                }
+                if (fileSource) {
+                  delete fileSource;
+                  fileSource = nullptr;
+                }
+
+                // Initialize WAV playback
+                fileSource = new AudioFileSourceLittleFS("/audio.wav");
+                wav = new AudioGeneratorWAV();
+                if (wav->begin(fileSource, out)) {
+                  Serial.println("Audio playback started");
+                  request->send(200, "text/plain", "Audio received and playing");
+                } else {
+                  Serial.println("Failed to start WAV decoder!");
+                  request->send(500, "text/plain", "Failed to start WAV decoder");
+                }
+              }
+            });
+
   // Start the server
   server.begin();
 }
 
 void loop() {
+  // Process the audio stream (if active)
+  if (wav != nullptr && wav->isRunning()) {
+    if (!wav->loop()) {
+      wav->stop();
+      delete wav;
+      wav = nullptr;
+      Serial.println("Audio playback finished.");
+    }
+  }
 
-
-  // Monitor memory usage
-  // Serial.print("Free heap: ");
-  // Serial.println(ESP.getFreeHeap());
-
-  // Additional debug if needed
-  // Uncomment to view more details about Wi-Fi and server status
-  // Serial.println(WiFi.localIP());
+  yield();  // Feed the watchdog timer
+  delay(100);  // Small delay to prevent watchdog reset
 }
