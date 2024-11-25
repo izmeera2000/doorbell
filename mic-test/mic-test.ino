@@ -48,7 +48,8 @@ void setup() {
     Serial.println("Connecting to WiFi...");
   }
   Serial.println("Connected to WiFi");
-  
+    Serial.println(WiFi.localIP());
+
   // I2S setup for INMP441
   i2s_config_t i2s_config = {
     .mode = (i2s_mode_t)I2S_MODE,              // Correct I2S mode (Master and RX)
