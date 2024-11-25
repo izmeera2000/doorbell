@@ -32,20 +32,25 @@
 //#define CAMERA_MODEL_DFRobot_FireBeetle2_ESP32S3 // Has PSRAM
 //#define CAMERA_MODEL_DFRobot_Romeo_ESP32S3 // Has PSRAM
 #include "camera_pins.h"
+const int buttonPin = 12;  // GPIO pin connected to the button
+const char* serverUrl = "https://test.kaunselingadtectaiping.com.my/test.php";
 
 // ===========================
 // Enter your WiFi credentials
 // ===========================
-const char* ssid = "iPhone";          // Replace with your Wi-Fi SSID
-const char* password = "Alamak323";   // Replace with your Wi-Fi Password
+const char* ssid = "iPhone";         // Replace with your Wi-Fi SSID
+const char* password = "Alamak323";  // Replace with your Wi-Fi Password
 
 void startCameraServer();
 void setupLedFlash(int pin);
+int buttonState = 0;      // Current button state
+int lastButtonState = 0;  // Previous button state
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
+  pinMode(buttonPin, INPUT_PULLUP);  // Button with internal pull-up resistor
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
@@ -107,7 +112,7 @@ void setup() {
     return;
   }
 
-  sensor_t *s = esp_camera_sensor_get();
+  sensor_t* s = esp_camera_sensor_get();
   // initial sensors are flipped vertically and colors are a bit saturated
   if (s->id.PID == OV3660_PID) {
     s->set_vflip(s, 1);        // flip it back
@@ -151,6 +156,50 @@ void setup() {
 }
 
 void loop() {
-  // Do nothing. Everything is done in another task by the web server
-  delay(10000);
+  // Read the current state of the button
+  buttonState = digitalRead(buttonPin);
+
+  // Check if the button was pressed (HIGH to LOW transition)
+  if (buttonState == LOW && lastButtonState == HIGH) {
+    Serial.println("Button pressed! Sending HTTP request...");
+
+    // Send the HTTP request to the server
+    sendHTTPRequest();
+
+    // Add a small delay to debounce the button
+    delay(200);
+  }
+
+  // Save the button state for the next loop iteration
+  lastButtonState = buttonState;
+
+  delay(50);  // Small delay to avoid excessive checking
+}
+
+
+void sendHTTPRequest() {
+  // Check WiFi status
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+
+    // Begin the HTTP request
+    http.begin(serverUrl);
+
+    // Send the HTTP GET request (you can change this to POST if needed)
+    int httpCode = http.GET();
+
+    // Check the response
+    if (httpCode > 0) {
+      Serial.printf("HTTP request successful. Code: %d\n", httpCode);
+      String payload = http.getString();
+      Serial.println("Response: " + payload);
+    } else {
+      Serial.printf("HTTP request failed. Code: %d\n", httpCode);
+    }
+
+    // End the HTTP connection
+    http.end();
+  } else {
+    Serial.println("Error: Not connected to WiFi");
+  }
 }
