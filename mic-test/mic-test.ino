@@ -2,8 +2,8 @@
 #include <ESPAsyncWebServer.h>
 #include <driver/i2s.h>
 
-#define WIFI_SSID "your-SSID"
-#define WIFI_PASSWORD "your-PASSWORD"
+#define WIFI_SSID "iPhone"
+#define WIFI_PASSWORD "Alamak323"
 
 // I2S configuration for INMP441 microphone
 #define I2S_NUM            (I2S_NUM_0)  // Use I2S_NUM_0 or I2S_NUM_1
