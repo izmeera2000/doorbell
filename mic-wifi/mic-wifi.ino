@@ -105,8 +105,7 @@ void setup() {
 }
 
 void loop() {
-  yield();  // Feed the watchdog timer
-  delay(100);  // Small delay to prevent watchdog reset
+
 
   // Monitor memory usage
   // Serial.print("Free heap: ");
