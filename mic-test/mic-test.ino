@@ -1,53 +1,26 @@
 #include <WiFi.h>
-#include <AsyncTCP.h>
-#include <ESPAsyncWebServer.h>
-#include <driver/i2s.h>
-#include <AudioGeneratorWAV.h>
-#include <AudioOutputI2S.h>
-#include <AudioFileSourceLittleFS.h>
-#include <LittleFS.h>
+#include <HTTPClient.h>
 
-// Wi-Fi Credentials
-const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
-const char *password = "Alamak323";   // Replace with your Wi-Fi Password
+// Wi-Fi credentials
+const char* ssid = "iPhone";          // Replace with your Wi-Fi SSID
+const char* password = "Alamak323";   // Replace with your Wi-Fi Password
 
-// Audio objects
-AudioGeneratorWAV* wav = nullptr;
-AudioOutputI2S* out = nullptr;
-AudioFileSourceLittleFS* fileSource = nullptr;
+// Pin configuration for the button
+const int buttonPin = 12; // GPIO pin connected to the button
 
-// I2S microphone pin configuration
-#define I2S_MIC_SERIAL_CLOCK 26
-#define I2S_MIC_LEFT_RIGHT_CLOCK 22
-#define I2S_MIC_SERIAL_DATA 21
+// URL to send the request to
+const char* serverUrl = "https://test.kaunselingadtectaiping.com.my/test.php";
 
-i2s_pin_config_t i2s_pin_config = {
-  .bck_io_num = I2S_MIC_SERIAL_CLOCK,
-  .ws_io_num = I2S_MIC_LEFT_RIGHT_CLOCK,
-  .data_out_num = I2S_PIN_NO_CHANGE,
-  .data_in_num = I2S_MIC_SERIAL_DATA
-};
-
-#define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 128  // Reduced buffer size for stability
-
-AsyncWebServer server(81);  // Using port 81 for receiving audio data
-
-// WAV header for streaming
-uint8_t wav_header[44] = {
-  'R', 'I', 'F', 'F', 0xFF, 0xFF, 0xFF, 0x7F, 'W', 'A', 'V', 'E', 'f', 'm', 't', ' ',
-  16, 0, 0, 0, 1, 0, 1, 0, (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
-  (uint8_t)(SAMPLE_RATE & 0xFF), (uint8_t)((SAMPLE_RATE >> 8) & 0xFF), 0x00, 0x00,
-  2, 0, 16, 0, 'd', 'a', 't', 'a', 0xFF, 0xFF, 0xFF, 0x7F
-};
-
-File audioFile;
+// Variables to track button state
+int buttonState = 0;    // Current button state
+int lastButtonState = 0; // Previous button state
 
 void setup() {
   // Start serial communication
   Serial.begin(115200);
 
   // Connect to Wi-Fi
+  Serial.println("Connecting to WiFi...");
   WiFi.begin(ssid, password);
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
@@ -55,138 +28,54 @@ void setup() {
   }
   Serial.println("WiFi connected!");
 
-  // Initialize LittleFS
-  if (!LittleFS.begin()) {
-    Serial.println("LittleFS mount failed!");
-    return;
-  }
-
-  // Configure I2S output for audio playback
-  out = new AudioOutputI2S();
-  out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.1);            // Adjust volume (0.0 to 1.0)
-  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
-
-  // I2S config for microphone
-  i2s_config_t i2s_config = {
-    .mode = (i2s_mode_t)(I2S_MODE_MASTER | I2S_MODE_RX),
-    .sample_rate = SAMPLE_RATE,
-    .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
-    .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
-    .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
-    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
-    .dma_buf_count = 10,
-    .dma_buf_len = SAMPLE_BUFFER_SIZE
-  };
-  
-  // Initialize I2S driver
-  esp_err_t err = i2s_driver_install(I2S_NUM_0, &i2s_config, 0, NULL);
-  if (err != ESP_OK) {
-    Serial.println("I2S driver installation failed");
-    return;
-  }
-
-  // Initialize I2S pins
-  err = i2s_set_pin(I2S_NUM_0, &i2s_pin_config);
-  if (err != ESP_OK) {
-    Serial.println("I2S pin setup failed");
-    return;
-  }
-
-  // Audio streaming endpoint for live I2S data
-  server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
-    // Send WAV header at the beginning
-    AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-      if (index == 0) {
-        memcpy(buffer, wav_header, sizeof(wav_header));
-        return sizeof(wav_header);
-      }
-
-      // Read audio samples from I2S
-      size_t bytesRead;
-      esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
-      if (result != ESP_OK || bytesRead == 0) {
-        Serial.println("I2S read error or no data.");
-        return 0;  // Return 0 bytes if there's an issue
-      }
-
-      return bytesRead;
-    });
-
-    // Set headers to allow for streaming
-    response->addHeader("Content-Type", "audio/wav");
-    response->addHeader("Transfer-Encoding", "chunked");
-    response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    response->addHeader("Pragma", "no-cache");
-    response->addHeader("Expires", "-1");
-    request->send(response);
-  });
-
-  // HTTP POST endpoint for receiving audio data
-  server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
-            [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
-              Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
-
-              if (index == 0) {
-                Serial.println("Receiving audio data...");
-                audioFile = LittleFS.open("/audio.wav", FILE_WRITE);
-                if (!audioFile) {
-                  Serial.println("Failed to open file for writing");
-                  request->send(500, "text/plain", "Failed to open file for writing");
-                  return;
-                }
-              }
-
-              // Write received data to the file
-              if (audioFile) {
-                audioFile.write(data, len);
-              }
-
-              if (index + len == total) {
-                Serial.println("Audio data received, finalizing file...");
-                if (audioFile) {
-                  audioFile.close();
-                }
-
-                // Stop previous playback if running
-                if (wav && wav->isRunning()) {
-                  wav->stop();
-                  delete wav;
-                  wav = nullptr;
-                }
-                if (fileSource) {
-                  delete fileSource;
-                  fileSource = nullptr;
-                }
-
-                // Initialize WAV playback
-                fileSource = new AudioFileSourceLittleFS("/audio.wav");
-                wav = new AudioGeneratorWAV();
-                if (wav->begin(fileSource, out)) {
-                  Serial.println("Audio playback started");
-                  request->send(200, "text/plain", "Audio received and playing");
-                } else {
-                  Serial.println("Failed to start WAV decoder!");
-                  request->send(500, "text/plain", "Failed to start WAV decoder");
-                }
-              }
-            });
-
-  // Start the server
-  server.begin();
+  // Set up button pin
+  pinMode(buttonPin, INPUT_PULLUP);  // Button with internal pull-up resistor
 }
 
 void loop() {
-  // Process the audio stream (if active)
-  if (wav != nullptr && wav->isRunning()) {
-    if (!wav->loop()) {
-      wav->stop();
-      delete wav;
-      wav = nullptr;
-      Serial.println("Audio playback finished.");
-    }
+  // Read the current state of the button
+  buttonState = digitalRead(buttonPin);
+
+  // Check if the button was pressed (HIGH to LOW transition)
+  if (buttonState == LOW && lastButtonState == HIGH) {
+    Serial.println("Button pressed! Sending HTTP request...");
+    
+    // Send the HTTP request to the server
+    sendHTTPRequest();
+
+    // Add a small delay to debounce the button
+    delay(200);
   }
 
-  yield();  // Feed the watchdog timer
-  delay(100);  // Small delay to prevent watchdog reset
+  // Save the button state for the next loop iteration
+  lastButtonState = buttonState;
+
+  delay(50);  // Small delay to avoid excessive checking
+}
+
+void sendHTTPRequest() {
+  // Check WiFi status
+  if (WiFi.status() == WL_CONNECTED) {
+    HTTPClient http;
+
+    // Begin the HTTP request
+    http.begin(serverUrl);
+
+    // Send the HTTP GET request (you can change this to POST if needed)
+    int httpCode = http.GET();
+
+    // Check the response
+    if (httpCode > 0) {
+      Serial.printf("HTTP request successful. Code: %d\n", httpCode);
+      String payload = http.getString();
+      Serial.println("Response: " + payload);
+    } else {
+      Serial.printf("HTTP request failed. Code: %d\n", httpCode);
+    }
+
+    // End the HTTP connection
+    http.end();
+  } else {
+    Serial.println("Error: Not connected to WiFi");
+  }
 }
