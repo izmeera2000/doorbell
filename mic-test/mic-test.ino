@@ -16,7 +16,7 @@
 #define I2S_PIN_SD         32  // Data Pin
 
 // Async Web Server instance
-AsyncWebServer server(80);  // Web server listens on port 80
+AsyncWebServer server(82);  // Web server listens on port 80
 
 // Buffer to store audio data
 int16_t audioBuffer[1024];  // 1024 samples per buffer
@@ -72,10 +72,7 @@ void setup() {
   i2s_driver_install(I2S_NUM, &i2s_config, 0, NULL);
   i2s_set_pin(I2S_NUM, &pin_config);
 
-  // Initialize WebServer Routes
-  server.on("/", HTTP_GET, [](AsyncWebServerRequest *request){
-    request->send(200, "text/html", "<h1>ESP32 Audio Stream</h1><p>Go to <a href='/audio'>/audio</a> to stream audio</p>");
-  });
+ 
 
   // Audio streaming endpoint
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request){
