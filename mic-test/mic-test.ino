@@ -11,9 +11,9 @@
 #define I2S_BITS           I2S_BITS_PER_SAMPLE_16BIT
 #define I2S_CHANNELS       I2S_CHANNEL_FMT_ONLY_LEFT  // Mono channel format (left)
 #define I2S_MODE           (I2S_MODE_MASTER | I2S_MODE_RX)
-#define I2S_PIN_BCK        14  // Clock Pin
-#define I2S_PIN_WS         15  // Word Select Pin
-#define I2S_PIN_SD         32  // Data Pin
+#define I2S_PIN_BCK        26  // Clock Pin
+#define I2S_PIN_WS         22  // Word Select Pin
+#define I2S_PIN_SD         21  // Data Pin
 
 // Async Web Server instance
 AsyncWebServer server(82);  // Web server listens on port 80
