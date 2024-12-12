@@ -4,14 +4,14 @@
 #include <driver/i2s.h>
 
 // Wi-Fi Credentials
-const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
-const char *password = "Alamak323";   // Replace with your Wi-Fi Password
+const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
+const char *password = "Alamak323";  // Replace with your Wi-Fi Password
 
 AsyncWebServer server(82);
 
 #define SAMPLE_RATE 8000
-#define SAMPLE_BUFFER_SIZE 64  // Reduced buffer size for stability
-#define DMA_BUF_COUNT 6        // Reduced buffer count
+#define SAMPLE_BUFFER_SIZE 1024  // Reduced buffer size for stability
+#define DMA_BUF_COUNT 3          // Reduced buffer count
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -61,6 +61,8 @@ void setup() {
     .intr_alloc_flags = ESP_INTR_FLAG_IRAM,  // Use IRAM for faster processing
     .dma_buf_count = DMA_BUF_COUNT,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
+    .tx_desc_auto_clear = true  // Auto clear the buffer on underrun
+
   };
 
   // Initialize I2S driver
@@ -82,7 +84,7 @@ void setup() {
     // Send WAV header at the beginning
     AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
       static size_t retryCount = 0;
-      
+
       if (index == 0) {
         // Send WAV header at the start
         memcpy(buffer, wav_header, sizeof(wav_header));
@@ -92,13 +94,13 @@ void setup() {
       // Read audio samples from I2S
       size_t bytesRead = 0;
       esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, 100 / portTICK_PERIOD_MS);
-      
+
       // Retry on failure
       if (result != ESP_OK || bytesRead == 0) {
         if (retryCount < 3) {
           retryCount++;
           delay(10);  // Short delay before retrying
-          return 0;    // Retry
+          return 0;   // Retry
         }
         Serial.println("I2S read failed after retries");
         return 0;  // No data available
@@ -122,7 +124,7 @@ void setup() {
 }
 
 void loop() {
-  yield();  // Feed the watchdog timer
+  yield();     // Feed the watchdog timer
   delay(100);  // Small delay to prevent watchdog reset
 
   // Monitor memory usage

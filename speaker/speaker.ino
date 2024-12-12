@@ -9,19 +9,19 @@
 const char* ssid = "iPhone";
 const char* password = "Alamak323";
 
+
 // Audio objects
 AudioGeneratorWAV* wav = nullptr;
 AudioOutputI2S* out = nullptr;
 AudioFileSourceLittleFS* fileSource = nullptr;
 
-// Async server
+// Async web server
 AsyncWebServer server(81);
 
 // Global file handle for writing
 File audioFile;
 
 void setup() {
-  // Start serial communication
   Serial.begin(115200);
 
   // Connect to WiFi
@@ -32,6 +32,8 @@ void setup() {
     Serial.println("Waiting for WiFi connection...");
   }
   Serial.println("WiFi connected!");
+  Serial.println("IP Address: ");
+  Serial.println(WiFi.localIP());
 
   // Initialize LittleFS
   if (!LittleFS.begin()) {
@@ -42,10 +44,10 @@ void setup() {
   // Configure I2S output for audio playback
   out = new AudioOutputI2S();
   out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.1);            // Adjust volume (0.0 to 1.0)
-  out->SetPinout(0, 0, 25);     // Use GPIO25 for DAC (BCK and WS set to 0)
+  out->SetGain(0.5);            // Adjust volume (0.0 to 1.0)
+  out->SetPinout(14, 25, 27);   // BCK=GPIO26, WS=GPIO25, DATA=GPIO27 (modify as needed)
 
-  // Set up HTTP POST endpoint for receiving audio
+  // Define HTTP POST endpoint for receiving audio
   server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {}, NULL,
             [](AsyncWebServerRequest *request, uint8_t *data, size_t len, size_t index, size_t total) {
               Serial.printf("Chunk received: Index=%d, Len=%d, Total=%d\n", index, len, total);
@@ -95,8 +97,9 @@ void setup() {
               }
             });
 
-  // Start the server
+  // Start the web server
   server.begin();
+  Serial.println("Server started");
 }
 
 void loop() {
