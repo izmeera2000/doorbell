@@ -2,15 +2,65 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>ESP32 Audio Stream</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ESP32 Audio Test</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: #f0f0f0;
+      text-align: center;
+    }
+    #audio-player {
+      margin-top: 20px;
+    }
+  </style>
 </head>
 <body>
-  <h1>ESP32 Audio Stream</h1>
-  <audio id="audioPlayer" controls autoplay></audio>
+  <h1>ESP32 Audio Stream Test</h1>
+  <p id="status">Connecting to WebSocket...</p>
+  <audio id="audio-player" controls>
+    <source id="audio-source" type="audio/wav">
+    Your browser does not support the audio element.
+  </audio>
 
   <script>
-    const audioPlayer = document.getElementById('audioPlayer');
-    audioPlayer.src = 'http://audio-edge-jfbmv.sin.d.radio mast.io/ref-128k-mp3-stereo';
+    let ws;
+    const audioPlayer = document.getElementById('audio-player');
+    const statusElement = document.getElementById('status');
+
+    // Function to establish a WebSocket connection to the ESP32
+    function connectWebSocket() {
+      ws = new WebSocket('ws://192.168.0.102:82/audio'); // Replace with your ESP32 IP address
+
+      ws.onopen = () => {
+        statusElement.innerText = "WebSocket connected. Waiting for audio data...";
+      };
+
+      ws.onclose = () => {
+        statusElement.innerText = "WebSocket closed. Reconnecting...";
+        setTimeout(connectWebSocket, 5000);  // Reconnect if closed
+      };
+
+      ws.onerror = (error) => {
+        console.error('WebSocket Error:', error);
+        statusElement.innerText = "WebSocket Error!";
+      };
+
+      ws.onmessage = (event) => {
+        if (event.data instanceof ArrayBuffer) {
+          // Handle binary data (audio stream)
+          const audioBlob = new Blob([event.data], { type: 'audio/wav' });
+          const audioUrl = URL.createObjectURL(audioBlob);
+          audioPlayer.src = audioUrl;
+          audioPlayer.play();
+        }
+      };
+    }
+
+    // Start the WebSocket connection
+    connectWebSocket();
   </script>
 </body>
 </html>

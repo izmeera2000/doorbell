@@ -5,12 +5,12 @@
 #include <AudioOutputI2S.h>
 
 // WiFi credentials
-const char* ssid = "your-SSID";
-const char* password = "your-PASSWORD";
+const char* ssid = "iPhone";
+const char* password = "Alamak323";
 
 // WebSocket server
 AsyncWebServer server(81);
-AsyncWebSocket ws("/ws");
+AsyncWebSocket ws("/speaker");
 
 // Audio objects
 AudioGeneratorWAV* wav = nullptr;
@@ -38,7 +38,7 @@ void setup() {
   out = new AudioOutputI2S();
   out->SetOutputModeMono(true); // Mono output
   out->SetGain(0.5);            // Adjust volume
-  out->SetPinout(26, 25, 27);   // BCK=GPIO26, WS=GPIO25, DATA=GPIO27
+  out->SetPinout(14, 25, 27);   // BCK=GPIO26, WS=GPIO25, DATA=GPIO27 (modify as needed)
 
   // WebSocket event handler
   ws.onEvent([](AsyncWebSocket* server, AsyncWebSocketClient* client, AwsEventType type, void* arg, uint8_t* data, size_t len) {
