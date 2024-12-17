@@ -4,14 +4,13 @@
 #include <driver/i2s.h>
 
 // Wi-Fi Credentials
-const char *ssid = "iPhone";         // Replace with your Wi-Fi SSID
-const char *password = "Alamak323";  // Replace with your Wi-Fi Password
+const char *ssid = "iPhone";          // Replace with your Wi-Fi SSID
+const char *password = "Alamak323";   // Replace with your Wi-Fi Password
 
 AsyncWebServer server(82);
 
 #define SAMPLE_RATE 8000
 #define SAMPLE_BUFFER_SIZE 1024  // Reduced buffer size for stability
-#define DMA_BUF_COUNT 3          // Reduced buffer count
 
 // I2S microphone pin configuration
 #define I2S_MIC_SERIAL_CLOCK 26
@@ -42,11 +41,6 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(1000);
     Serial.println("Waiting for WiFi connection...");
-    retries++;
-    if (retries > 10) {
-      Serial.println("Failed to connect to WiFi, rebooting...");
-      ESP.restart();  // Reboot if Wi-Fi connection fails
-    }
   }
   Serial.println("Connected to WiFi");
   Serial.println(WiFi.localIP());
@@ -58,11 +52,9 @@ void setup() {
     .bits_per_sample = I2S_BITS_PER_SAMPLE_16BIT,
     .channel_format = I2S_CHANNEL_FMT_ONLY_LEFT,
     .communication_format = i2s_comm_format_t(I2S_COMM_FORMAT_I2S),
-    .intr_alloc_flags = ESP_INTR_FLAG_IRAM,  // Use IRAM for faster processing
-    .dma_buf_count = DMA_BUF_COUNT,
+    .intr_alloc_flags = ESP_INTR_FLAG_LEVEL1,
+    .dma_buf_count = 3,
     .dma_buf_len = SAMPLE_BUFFER_SIZE
-    .tx_desc_auto_clear = true  // Auto clear the buffer on underrun
-
   };
 
   // Initialize I2S driver
@@ -83,34 +75,23 @@ void setup() {
   server.on("/audio", HTTP_GET, [](AsyncWebServerRequest *request) {
     // Send WAV header at the beginning
     AsyncWebServerResponse *response = request->beginChunkedResponse("audio/wav", [](uint8_t *buffer, size_t maxLen, size_t index) -> size_t {
-      static size_t retryCount = 0;
-
       if (index == 0) {
-        // Send WAV header at the start
         memcpy(buffer, wav_header, sizeof(wav_header));
         return sizeof(wav_header);
       }
 
       // Read audio samples from I2S
-      size_t bytesRead = 0;
-      esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, 100 / portTICK_PERIOD_MS);
-
-      // Retry on failure
+      size_t bytesRead;
+      esp_err_t result = i2s_read(I2S_NUM_0, buffer, maxLen, &bytesRead, portMAX_DELAY);
       if (result != ESP_OK || bytesRead == 0) {
-        if (retryCount < 3) {
-          retryCount++;
-          delay(10);  // Short delay before retrying
-          return 0;   // Retry
-        }
-        Serial.println("I2S read failed after retries");
-        return 0;  // No data available
+        Serial.println("I2S read error or no data.");
+        return 0;  // Return 0 bytes if there's an issue
       }
 
-      retryCount = 0;  // Reset retry count on success
       return bytesRead;
     });
 
-    // Set headers for streaming
+    // Set headers to allow for streaming
     response->addHeader("Content-Type", "audio/wav");
     response->addHeader("Transfer-Encoding", "chunked");
     response->addHeader("Cache-Control", "no-cache, no-store, must-revalidate");
@@ -124,10 +105,14 @@ void setup() {
 }
 
 void loop() {
-  yield();     // Feed the watchdog timer
+  yield();  // Feed the watchdog timer
   delay(100);  // Small delay to prevent watchdog reset
 
   // Monitor memory usage
-  Serial.print("Free Heap: ");
-  Serial.println(ESP.getFreeHeap());
+  // Serial.print("Free heap: ");
+  // Serial.println(ESP.getFreeHeap());
+
+  // Additional debug if needed
+  // Uncomment to view more details about Wi-Fi and server status
+  // Serial.println(WiFi.localIP());
 }
