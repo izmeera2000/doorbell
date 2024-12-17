@@ -70,7 +70,6 @@ void setup() {
   out->SetOutputModeMono(true);   // Set Mono output (change to false for stereo if required)
   out->SetGain(0.5);              // Adjust volume (0.0 to 1.0)
   out->SetPinout(27, 25, 23);     // BCK=GPIO27, WS=GPIO25, DATA=GPIO23
-  out->SetI2SFormat(I2S_PHILIPS_STANDARD, I2S_MSB);  // Set I2S format
   out->SetSampleRate(44100);      // Set the sample rate (44100 Hz for standard audio)
   out->SetBitsPerSample(16);      // Set the bit depth to 16 bits (MAX98357A supports 16 bits)
 
