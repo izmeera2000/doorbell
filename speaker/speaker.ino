@@ -69,7 +69,7 @@ void setup() {
   out = new AudioOutputI2S();
   out->SetOutputModeMono(true);   // Mono output (adjust for stereo if needed)
   out->SetGain(0.5);              // Adjust volume (0.0 to 1.0)
-  out->SetPinout(27, 25, 22);     // BCK=GPIO26, WS=GPIO25, DATA=GPIO22
+  out->SetPinout(27, 25, 23);     // BCK=GPIO26, WS=GPIO25, DATA=GPIO22
 
   // Define HTTP POST endpoint for receiving audio
   server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {
