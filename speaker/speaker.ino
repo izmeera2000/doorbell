@@ -67,9 +67,12 @@ void setup() {
 
   // Configure I2S output for audio playback
   out = new AudioOutputI2S();
-  out->SetOutputModeMono(true);   // Mono output (adjust for stereo if needed)
+  out->SetOutputModeMono(true);   // Set Mono output (change to false for stereo if required)
   out->SetGain(0.5);              // Adjust volume (0.0 to 1.0)
-  out->SetPinout(27, 25, 23);     // BCK=GPIO26, WS=GPIO25, DATA=GPIO22
+  out->SetPinout(27, 25, 23);     // BCK=GPIO27, WS=GPIO25, DATA=GPIO23
+  out->SetI2SFormat(I2S_PHILIPS_STANDARD, I2S_MSB);  // Set I2S format
+  out->SetSampleRate(44100);      // Set the sample rate (44100 Hz for standard audio)
+  out->SetBitsPerSample(16);      // Set the bit depth to 16 bits (MAX98357A supports 16 bits)
 
   // Define HTTP POST endpoint for receiving audio
   server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {
