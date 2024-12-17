@@ -6,8 +6,8 @@
 #include <LittleFS.h>
 
 // WiFi credentials
-const char* ssid = "iPhone";
-const char* password = "Alamak323";
+const char* ssid = "iPhone";       // Replace with your WiFi SSID
+const char* password = "Alamak323"; // Replace with your WiFi password
 
 // Audio objects
 AudioGeneratorWAV* wav = nullptr;
@@ -67,9 +67,9 @@ void setup() {
 
   // Configure I2S output for audio playback
   out = new AudioOutputI2S();
-  out->SetOutputModeMono(true); // Mono output
-  out->SetGain(0.5);            // Adjust volume (0.0 to 1.0)
-  out->SetPinout(27, 25, 22);   // BCK=GPIO26, WS=GPIO25, DATA=GPIO22
+  out->SetOutputModeMono(true);   // Mono output (adjust for stereo if needed)
+  out->SetGain(0.5);              // Adjust volume (0.0 to 1.0)
+  out->SetPinout(27, 25, 22);     // BCK=GPIO26, WS=GPIO25, DATA=GPIO22
 
   // Define HTTP POST endpoint for receiving audio
   server.on("/speaker", HTTP_POST, [](AsyncWebServerRequest *request) {
@@ -96,4 +96,14 @@ void setup() {
 }
 
 void loop() {
-  // Process the audio stream (if active
+  // Process the audio stream (if active)
+  if (wav != nullptr && wav->isRunning()) {
+    Serial.println("Audio playback is running...");
+    if (!wav->loop()) {
+      wav->stop();
+      delete wav;
+      wav = nullptr;
+      Serial.println("Audio playback finished.");
+    }
+  }
+}
