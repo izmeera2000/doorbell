@@ -33,7 +33,6 @@
 //#define CAMERA_MODEL_DFRobot_FireBeetle2_ESP32S3 // Has PSRAM
 //#define CAMERA_MODEL_DFRobot_Romeo_ESP32S3 // Has PSRAM
 #include "camera_pins.h"
-const int buttonPin = 12;  // GPIO pin connected to the button
 const char* serverUrl = "https://test.kaunselingadtectaiping.com.my/test.php";
 
 // ===========================
@@ -44,14 +43,12 @@ const char* password = "Alamak323";  // Replace with your Wi-Fi Password
 
 void startCameraServer();
 void setupLedFlash(int pin);
-int buttonState = 0;      // Current button state
-int lastButtonState = 0;  // Previous button state
+
 
 void setup() {
   Serial.begin(115200);
   Serial.setDebugOutput(true);
   Serial.println();
-  pinMode(buttonPin, INPUT_PULLUP);  // Button with internal pull-up resistor
 
   camera_config_t config;
   config.ledc_channel = LEDC_CHANNEL_0;
