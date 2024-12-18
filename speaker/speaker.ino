@@ -4,6 +4,7 @@
 #include <AudioOutputI2S.h>
 #include <AudioFileSourceLittleFS.h>
 #include <LittleFS.h>
+#include <HTTPClient.h>
 
 // WiFi credentials
 const char* ssid = "iPhone";
